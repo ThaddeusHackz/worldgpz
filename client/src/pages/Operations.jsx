@@ -14,16 +14,22 @@ import {
   Map as MapIcon,
   Menu,
   Newspaper,
+  Pause,
+  Play,
   Radio,
   RefreshCw,
   Search,
   ShieldCheck,
   Sparkles,
   TriangleAlert,
+  Video,
+  Volume2,
+  VolumeX,
   X,
   Zap,
 } from "lucide-react";
 import { Brand } from "../components/Brand.jsx";
+import YouTubePlayer from "../components/YouTubePlayer.jsx";
 import LoadingScreen from "../components/LoadingScreen.jsx";
 import WorldMap from "../components/WorldMap.jsx";
 import { api } from "../lib/api.js";
@@ -269,6 +275,152 @@ function CorrelationPanel({ regions, correlations }) {
           </p>
         )}
       </div>
+    </section>
+  );
+}
+
+function LiveChannelsPanel() {
+  const [media, setMedia] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [activated, setActivated] = useState(false);
+  const [playing, setPlaying] = useState(false);
+  const [muted, setMuted] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    let active = true;
+    api("/api/v1/media/channels")
+      .then((response) => {
+        if (!active) return;
+        setMedia(response.data);
+        const firstLive = response.data.channels.find(
+          (channel) => channel.status === "live",
+        );
+        setSelectedId(firstLive?.id || response.data.channels[0]?.id || null);
+      })
+      .catch((requestError) => active && setError(requestError.message));
+    return () => {
+      active = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    const onVisibility = () => {
+      if (document.hidden) setPlaying(false);
+    };
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => document.removeEventListener("visibilitychange", onVisibility);
+  }, []);
+
+  useEffect(() => {
+    if (!playing) return undefined;
+    let idleTimer;
+    const resetIdle = () => {
+      clearTimeout(idleTimer);
+      idleTimer = setTimeout(() => setPlaying(false), 5 * 60 * 1000);
+    };
+    const events = ["pointerdown", "keydown", "scroll", "touchstart"];
+    events.forEach((name) =>
+      window.addEventListener(name, resetIdle, { passive: true }),
+    );
+    resetIdle();
+    return () => {
+      clearTimeout(idleTimer);
+      events.forEach((name) => window.removeEventListener(name, resetIdle));
+    };
+  }, [playing]);
+
+  const selected = media?.channels.find((channel) => channel.id === selectedId);
+  const start = () => {
+    if (!selected?.videoId) return;
+    setActivated(true);
+    setPlaying(true);
+    setError("");
+  };
+
+  return (
+    <section className="ops-panel ops-video" id="ops-channels">
+      <header>
+        <div>
+          <Video size={14} />
+          <strong>Live channels</strong>
+          <span>{media?.liveCount || 0}</span>
+        </div>
+        <em>{media?.configured ? media.status : "API key required"}</em>
+      </header>
+      <div className="ops-video-stage">
+        {activated && selected?.videoId ? (
+          <YouTubePlayer
+            videoId={selected.videoId}
+            playing={playing}
+            muted={muted}
+            onError={setError}
+          />
+        ) : (
+          <div className="ops-video-poster">
+            {selected?.thumbnail && <img src={selected.thumbnail} alt="" />}
+            <div>
+              <Video size={23} />
+              <strong>{selected?.name || "Live news network"}</strong>
+              <span>
+                {media?.configured
+                  ? selected?.status || "Checking stream"
+                  : "Add YOUTUBE_API_KEY on the server"}
+              </span>
+            </div>
+            {selected?.videoId && (
+              <button onClick={start} aria-label={`Play ${selected.name}`}>
+                <Play size={18} fill="currentColor" />
+              </button>
+            )}
+          </div>
+        )}
+        {activated && selected?.videoId && (
+          <div className="ops-video-controls">
+            <button onClick={() => setPlaying((value) => !value)}>
+              {playing ? <Pause size={13} /> : <Play size={13} />}
+            </button>
+            <button onClick={() => setMuted((value) => !value)}>
+              {muted ? <VolumeX size={13} /> : <Volume2 size={13} />}
+            </button>
+            <span>
+              <i className={playing ? "live" : ""} />{" "}
+              {playing ? "LIVE" : "PAUSED"}
+            </span>
+            <a href={selected.watchUrl} target="_blank" rel="noreferrer">
+              YOUTUBE <ExternalLink size={10} />
+            </a>
+          </div>
+        )}
+      </div>
+      <div className="ops-channel-strip">
+        {(media?.channels || []).map((channel) => (
+          <button
+            key={channel.id}
+            className={`${selectedId === channel.id ? "active" : ""} ${channel.status}`}
+            onClick={() => {
+              setSelectedId(channel.id);
+              setActivated(false);
+              setPlaying(false);
+              setError("");
+            }}
+          >
+            <i />
+            {channel.name}
+          </button>
+        ))}
+      </div>
+      {error && (
+        <div className="ops-video-error">
+          <TriangleAlert size={11} /> {error}
+        </div>
+      )}
+      {!media?.configured && !error && (
+        <div className="ops-video-note">
+          The key stays server-side. YouTube embeds load only after a user
+          presses play.
+        </div>
+      )}
     </section>
   );
 }
@@ -628,6 +780,7 @@ export default function Operations() {
               ?.scrollIntoView({ behavior: "smooth" });
           }}
         />
+        <LiveChannelsPanel />
         <CorrelationPanel
           regions={data.regions || []}
           correlations={data.correlations || []}
@@ -651,9 +804,9 @@ export default function Operations() {
           <List size={19} />
           <span>Feed</span>
         </a>
-        <a href="#ops-intel">
-          <BrainCircuit size={19} />
-          <span>Intel</span>
+        <a href="#ops-channels">
+          <Video size={19} />
+          <span>Channels</span>
         </a>
         <Link to="/login">
           <LockKeyhole size={19} />

@@ -2,6 +2,7 @@ import { config, validateProductionConfig } from "./config.js";
 import { Store } from "./store.js";
 import { LiveSourcesService } from "./services/liveSources.js";
 import { IntelligenceService } from "./services/intelligence.js";
+import { MediaService } from "./services/media.js";
 import { createApp } from "./app.js";
 
 validateProductionConfig();
@@ -15,7 +16,8 @@ const store = await new Store({
 
 const liveSources = new LiveSourcesService(config);
 const intelligence = new IntelligenceService(config);
-const app = createApp({ config, store, liveSources, intelligence });
+const media = new MediaService(config);
+const app = createApp({ config, store, liveSources, intelligence, media });
 
 const server = app.listen(config.port, "0.0.0.0", () => {
   console.log(

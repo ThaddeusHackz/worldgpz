@@ -86,7 +86,7 @@ const buildOperationalPicture = (events) => {
   return { layers, regions, correlations };
 };
 
-export function createApp({ config, store, liveSources, intelligence }) {
+export function createApp({ config, store, liveSources, intelligence, media }) {
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
 
@@ -102,7 +102,7 @@ export function createApp({ config, store, liveSources, intelligence }) {
       contentSecurityPolicy: {
         directives: {
           defaultSrc: ["'self'"],
-          scriptSrc: ["'self'"],
+          scriptSrc: ["'self'", "https://www.youtube.com"],
           styleSrc: ["'self'", "'unsafe-inline'"],
           imgSrc: [
             "'self'",
@@ -110,8 +110,15 @@ export function createApp({ config, store, liveSources, intelligence }) {
             "blob:",
             "https://*.basemaps.cartocdn.com",
             "https://*.tile.openstreetmap.org",
+            "https://i.ytimg.com",
+            "https://*.ggpht.com",
           ],
-          connectSrc: ["'self'"],
+          connectSrc: ["'self'", "https://www.youtube.com"],
+          frameSrc: [
+            "'self'",
+            "https://www.youtube.com",
+            "https://www.youtube-nocookie.com",
+          ],
           fontSrc: ["'self'", "data:"],
           objectSrc: ["'none'"],
           baseUri: ["'self'"],
@@ -119,6 +126,7 @@ export function createApp({ config, store, liveSources, intelligence }) {
         },
       },
       crossOriginResourcePolicy: { policy: "cross-origin" },
+      referrerPolicy: { policy: "strict-origin-when-cross-origin" },
     }),
   );
   app.use(
@@ -278,6 +286,20 @@ export function createApp({ config, store, liveSources, intelligence }) {
         data: snapshot.news,
         generatedAt: snapshot.fetchedAt,
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/media/channels", async (_req, res, next) => {
+    try {
+      const result = await media.list();
+      res
+        .set(
+          "cache-control",
+          "public, max-age=300, stale-while-revalidate=3600",
+        )
+        .json({ success: true, data: result });
     } catch (error) {
       next(error);
     }

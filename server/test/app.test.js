@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { Store } from "../src/store.js";
 import { createApp } from "../src/app.js";
+import { MediaService } from "../src/services/media.js";
 
 const testConfig = {
   env: "test",
@@ -16,6 +17,9 @@ const testConfig = {
     password: "Strong!Test#Password1",
     name: "Test Admin",
   },
+  youtubeApiKey: "",
+  youtubeCacheSeconds: 10_800,
+  fetchTimeoutMs: 1_000,
 };
 
 const snapshot = {
@@ -83,6 +87,7 @@ beforeAll(async () => {
         confidence: "rules-based",
       }),
     },
+    media: new MediaService(testConfig),
   });
 });
 
@@ -113,6 +118,15 @@ describe("public API", () => {
     );
     expect(Array.isArray(response.body.data.regions)).toBe(true);
     expect(Array.isArray(response.body.data.correlations)).toBe(true);
+  });
+
+  it("returns a safe media capability response when YouTube is unconfigured", async () => {
+    const response = await request(app)
+      .get("/api/v1/media/channels")
+      .expect(200);
+    expect(response.body.data.configured).toBe(false);
+    expect(response.body.data.channels.length).toBeGreaterThan(0);
+    expect(JSON.stringify(response.body)).not.toContain("youtubeApiKey");
   });
 
   it("rejects invalid event filters safely", async () => {

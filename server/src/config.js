@@ -42,6 +42,8 @@ export const config = {
   sourceCacheSeconds: numberFromEnv(process.env.SOURCE_CACHE_SECONDS, 300),
   fetchTimeoutMs: numberFromEnv(process.env.FETCH_TIMEOUT_MS, 8000),
   newsApiKey: process.env.NEWS_API_KEY || "",
+  youtubeApiKey: process.env.YOUTUBE_API_KEY || "",
+  youtubeCacheSeconds: numberFromEnv(process.env.YOUTUBE_CACHE_SECONDS, 10_800),
   weatherApiKey: process.env.OPENWEATHER_API_KEY || "",
   ai: {
     apiKey: process.env.AI_API_KEY || "",

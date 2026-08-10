@@ -9,6 +9,7 @@ A production-oriented global intelligence monitor with a public situation room, 
 - **Responsive command center** — live geospatial signal map, high-priority feed, filtering, source reports, trend visualization, and a composite watch index.
 - **Map-first operations room** — compact operational chrome, time windows, region presets, independent layers, command palette, convergence board, intelligence panels, and mobile bottom navigation at `/operations`.
 - **Live source adapters** — USGS magnitude 4.5+ earthquakes, Open-Meteo weather observations, NASA EONET natural events, ReliefWeb reports, and optional NewsAPI.
+- **Live broadcast console** — server-side YouTube Data API discovery for seven curated networks, privacy-enhanced IFrame playback, persistent player controls, hidden-tab pausing, five-minute idle protection, and quota-aware shared caching.
 - **Safe AI integration** — an optional OpenAI-compatible provider creates source-grounded briefs. Without a key, a deterministic rules engine provides a useful fallback.
 - **Full admin console** — authenticated event creation, editing, deletion, source health, overview statistics, and an audit trail.
 - **Persistent data** — PostgreSQL on Render; atomic local JSON storage for development.
@@ -73,19 +74,21 @@ npm start
 
 All provider credentials belong in the **server environment**. Never prefix private values with `VITE_`; Vite variables are compiled into the public browser bundle.
 
-| Variable              | Required            | Purpose                                                              |
-| --------------------- | ------------------- | -------------------------------------------------------------------- |
-| `JWT_SECRET`          | Production          | Signs administrator sessions; 32+ random characters                  |
-| `ADMIN_EMAIL`         | Production          | Bootstrap administrator email                                        |
-| `ADMIN_PASSWORD`      | Production          | Bootstrap password; 12+ characters                                   |
-| `DATABASE_URL`        | Production          | PostgreSQL connection string (injected by Render)                    |
-| `DATABASE_SSL`        | No                  | Set `true` only when your external PostgreSQL provider requires it   |
-| `NEWS_API_KEY`        | No                  | Adds NewsAPI headlines; ReliefWeb remains the fallback               |
-| `OPENWEATHER_API_KEY` | No                  | Reserved for an additional weather provider; Open-Meteo needs no key |
-| `AI_API_KEY`          | No                  | Enables an OpenAI-compatible briefing provider                       |
-| `AI_BASE_URL`         | No                  | Defaults to `https://api.openai.com/v1`                              |
-| `AI_MODEL`            | No                  | Defaults to `gpt-4o-mini`                                            |
-| `CORS_ORIGINS`        | Local/split hosting | Comma-separated allowed browser origins                              |
+| Variable                | Required            | Purpose                                                              |
+| ----------------------- | ------------------- | -------------------------------------------------------------------- |
+| `JWT_SECRET`            | Production          | Signs administrator sessions; 32+ random characters                  |
+| `ADMIN_EMAIL`           | Production          | Bootstrap administrator email                                        |
+| `ADMIN_PASSWORD`        | Production          | Bootstrap password; 12+ characters                                   |
+| `DATABASE_URL`          | Production          | PostgreSQL connection string (injected by Render)                    |
+| `DATABASE_SSL`          | No                  | Set `true` only when your external PostgreSQL provider requires it   |
+| `NEWS_API_KEY`          | No                  | Adds NewsAPI headlines; ReliefWeb remains the fallback               |
+| `YOUTUBE_API_KEY`       | No                  | Discovers current live broadcasts; remains server-side               |
+| `YOUTUBE_CACHE_SECONDS` | No                  | Live-discovery cache; defaults to 10,800 seconds (3 hours)           |
+| `OPENWEATHER_API_KEY`   | No                  | Reserved for an additional weather provider; Open-Meteo needs no key |
+| `AI_API_KEY`            | No                  | Enables an OpenAI-compatible briefing provider                       |
+| `AI_BASE_URL`           | No                  | Defaults to `https://api.openai.com/v1`                              |
+| `AI_MODEL`              | No                  | Defaults to `gpt-4o-mini`                                            |
+| `CORS_ORIGINS`          | Local/split hosting | Comma-separated allowed browser origins                              |
 
 The bootstrap admin is created only when its email does not already exist. Changing `ADMIN_PASSWORD` later does **not** overwrite an existing database password. For a production credential rotation, add a dedicated password-reset workflow or replace the bootstrap user deliberately in PostgreSQL.
 
@@ -137,7 +140,7 @@ worldgpz/
 
 ## Deployment
 
-Follow [`docs/DEPLOY_RENDER.md`](docs/DEPLOY_RENDER.md). The checked-in `render.yaml` provisions a web service and PostgreSQL database together.
+Follow [`docs/DEPLOY_RENDER.md`](docs/DEPLOY_RENDER.md). The checked-in `render.yaml` provisions a web service and PostgreSQL database together. Provider setup, quota behavior, live-video architecture, and the additional keys needed for broader coverage are documented in [`docs/API_KEYS_AND_LIVE_MEDIA.md`](docs/API_KEYS_AND_LIVE_MEDIA.md).
 
 ## Security notice from the rebuild
 

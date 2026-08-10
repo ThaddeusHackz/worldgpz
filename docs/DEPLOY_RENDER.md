@@ -28,7 +28,8 @@ Render generates `JWT_SECRET` automatically from the Blueprint. Never put any of
 7. Enter the values marked **sync: false**:
    - `ADMIN_EMAIL`
    - `ADMIN_PASSWORD`
-   - optional `NEWS_API_KEY`
+   - optional production-eligible `NEWS_API_KEY`
+   - optional restricted `YOUTUBE_API_KEY`
    - optional `OPENWEATHER_API_KEY`
    - optional `AI_API_KEY`
 8. Apply the Blueprint and wait for the first deployment.
