@@ -1,0 +1,50 @@
+services:
+  - type: web
+    name: worldgpz
+    runtime: node
+    plan: free
+    buildCommand: npm ci && npm run build
+    startCommand: npm start
+    healthCheckPath: /api/health
+    autoDeploy: true
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NODE_VERSION
+        value: 22
+      - key: TRUST_PROXY
+        value: 1
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ADMIN_NAME
+        value: WORLDGPZ Administrator
+      - key: ADMIN_EMAIL
+        sync: false
+      - key: ADMIN_PASSWORD
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: worldgpz-db
+          property: connectionString
+      - key: DATABASE_SSL
+        value: false
+      - key: NEWS_API_KEY
+        sync: false
+      - key: YOUTUBE_API_KEY
+        sync: false
+      - key: YOUTUBE_CACHE_SECONDS
+        value: 10800
+      - key: OPENWEATHER_API_KEY
+        sync: false
+      - key: AI_API_KEY
+        sync: false
+      - key: AI_BASE_URL
+        value: https://api.openai.com/v1
+      - key: AI_MODEL
+        value: gpt-4o-mini
+
+databases:
+  - name: worldgpz-db
+    plan: free
+    databaseName: worldgpz
+    user: worldgpz
