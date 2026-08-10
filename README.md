@@ -7,7 +7,8 @@ A production-oriented global intelligence monitor with a public situation room, 
 ## What is included
 
 - **Responsive command center** — live geospatial signal map, high-priority feed, filtering, source reports, trend visualization, and a composite watch index.
-- **Live source adapters** — USGS magnitude 4.5+ earthquakes, Open-Meteo weather observations, ReliefWeb reports, and optional NewsAPI.
+- **Map-first operations room** — compact operational chrome, time windows, region presets, independent layers, command palette, convergence board, intelligence panels, and mobile bottom navigation at `/operations`.
+- **Live source adapters** — USGS magnitude 4.5+ earthquakes, Open-Meteo weather observations, NASA EONET natural events, ReliefWeb reports, and optional NewsAPI.
 - **Safe AI integration** — an optional OpenAI-compatible provider creates source-grounded briefs. Without a key, a deterministic rules engine provides a useful fallback.
 - **Full admin console** — authenticated event creation, editing, deletion, source health, overview statistics, and an audit trail.
 - **Persistent data** — PostgreSQL on Render; atomic local JSON storage for development.
@@ -55,7 +56,8 @@ Start both development servers:
 npm run dev
 ```
 
-- Frontend: `http://localhost:5173`
+- Executive dashboard: `http://localhost:5173`
+- Operations room: `http://localhost:5173/operations`
 - API: `http://localhost:4000/api/health`
 - Admin: `http://localhost:5173/login`
 

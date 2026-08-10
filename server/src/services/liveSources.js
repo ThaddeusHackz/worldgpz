@@ -124,6 +124,41 @@ export class LiveSourcesService {
     });
   }
 
+  async #naturalEvents() {
+    const payload = await this.#fetchJson(
+      "https://eonet.gsfc.nasa.gov/api/v3/events?status=open&limit=30",
+    );
+    return (payload.events || []).flatMap((event) => {
+      const geometry = event.geometry?.at(-1);
+      if (!geometry || geometry.type !== "Point" || !geometry.coordinates)
+        return [];
+      const [longitude, latitude] = geometry.coordinates;
+      const category = event.categories?.[0]?.title || "Natural event";
+      return [
+        {
+          id: `eonet-${event.id}`,
+          title: event.title,
+          summary: `${category} tracked by NASA's Earth Observatory Natural Event Tracker.`,
+          category: "natural",
+          severity: ["Wildfires", "Severe Storms", "Volcanoes"].includes(
+            category,
+          )
+            ? "high"
+            : "medium",
+          status: "monitoring",
+          region: "Global",
+          country: category,
+          latitude,
+          longitude,
+          sourceName: "NASA EONET",
+          sourceUrl: event.link || "https://eonet.gsfc.nasa.gov/",
+          publishedAt: geometry.date || new Date().toISOString(),
+          live: true,
+        },
+      ];
+    });
+  }
+
   async #reliefWeb() {
     const url = new URL("https://api.reliefweb.int/v1/reports");
     url.searchParams.set("appname", "worldgpz");
@@ -184,13 +219,19 @@ export class LiveSourcesService {
       return this.cache;
 
     const startedAt = Date.now();
-    const [earthquakesResult, weatherResult, reliefResult, newsResult] =
-      await Promise.allSettled([
-        this.#earthquakes(),
-        this.#weather(),
-        this.#reliefWeb(),
-        this.#newsApi(),
-      ]);
+    const [
+      earthquakesResult,
+      weatherResult,
+      naturalResult,
+      reliefResult,
+      newsResult,
+    ] = await Promise.allSettled([
+      this.#earthquakes(),
+      this.#weather(),
+      this.#naturalEvents(),
+      this.#reliefWeb(),
+      this.#newsApi(),
+    ]);
     const unpack = (result) =>
       result.status === "fulfilled" ? result.value : [];
     const sourceState = (result, configured = true) => ({
@@ -208,12 +249,14 @@ export class LiveSourcesService {
     this.cache = {
       earthquakes: unpack(earthquakesResult),
       weather: unpack(weatherResult),
+      natural: unpack(naturalResult),
       news: premiumNews.length ? premiumNews : reliefNews,
       sourceStatus: [
         { ...publicSources[0], ...sourceState(earthquakesResult) },
         { ...publicSources[1], ...sourceState(weatherResult) },
-        { ...publicSources[2], ...sourceState(reliefResult) },
-        { ...publicSources[3], status: "operational", latencyMs: 0 },
+        { ...publicSources[2], ...sourceState(naturalResult) },
+        { ...publicSources[3], ...sourceState(reliefResult) },
+        { ...publicSources[4], status: "operational", latencyMs: 0 },
         {
           id: "newsapi",
           name: "NewsAPI",

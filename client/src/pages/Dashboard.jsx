@@ -126,6 +126,14 @@ function Navigation({ open, onClose }) {
             <Database size={19} />
             <span>Sources</span>
           </a>
+          <Link
+            className="nav-item"
+            to="/operations"
+            aria-label="Operations mode"
+          >
+            <CircleGauge size={19} />
+            <span>Operations</span>
+          </Link>
         </nav>
         <div className="side-nav-bottom">
           <Link

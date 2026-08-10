@@ -38,6 +38,23 @@ const snapshot = {
     },
   ],
   weather: [],
+  natural: [
+    {
+      id: "eonet-1",
+      title: "Test natural event",
+      summary: "A deterministic NASA EONET test fixture.",
+      category: "natural",
+      severity: "medium",
+      status: "monitoring",
+      region: "Global",
+      country: "Wildfires",
+      latitude: 3,
+      longitude: 4,
+      sourceName: "NASA EONET",
+      sourceUrl: "https://example.com/eonet",
+      publishedAt: new Date().toISOString(),
+    },
+  ],
   news: [],
   sourceStatus: [{ id: "usgs", name: "USGS", status: "operational" }],
   fetchedAt: new Date().toISOString(),
@@ -84,6 +101,18 @@ describe("public API", () => {
     expect(
       response.body.data.events.some((event) => event.sourceName === "USGS"),
     ).toBe(true);
+    expect(
+      response.body.data.events.some(
+        (event) => event.sourceName === "NASA EONET",
+      ),
+    ).toBe(true);
+    expect(response.body.data.layers).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ id: "natural", count: 1 }),
+      ]),
+    );
+    expect(Array.isArray(response.body.data.regions)).toBe(true);
+    expect(Array.isArray(response.body.data.correlations)).toBe(true);
   });
 
   it("rejects invalid event filters safely", async () => {

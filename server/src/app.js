@@ -9,6 +9,7 @@ import { rateLimit } from "express-rate-limit";
 import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "./middleware/auth.js";
+import { layerCatalog } from "./data/seed.js";
 import {
   eventSchema,
   loginSchema,
@@ -36,6 +37,54 @@ const trend = (total, critical) =>
       Math.round(critical * (0.45 + ((index * 3) % 8) / 18)),
     ),
   }));
+
+const buildOperationalPicture = (events) => {
+  const layers = layerCatalog.map((layer) => ({
+    ...layer,
+    count: events.filter((event) => event.category === layer.id).length,
+  }));
+  const grouped = new Map();
+  for (const event of events) {
+    const region =
+      event.region === "Global" ? event.country || "Global" : event.region;
+    const current = grouped.get(region) || {
+      region,
+      count: 0,
+      weight: 0,
+      categories: new Set(),
+    };
+    current.count += 1;
+    current.weight += severityWeight[event.severity] || 1;
+    current.categories.add(event.category);
+    grouped.set(region, current);
+  }
+  const regions = [...grouped.values()]
+    .map((item) => ({
+      region: item.region,
+      count: item.count,
+      score: Math.min(
+        99,
+        Math.round(
+          (item.weight / Math.max(item.count, 1)) * 21 + item.count * 2,
+        ),
+      ),
+      categories: [...item.categories],
+    }))
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 8);
+  const correlations = regions
+    .filter((item) => item.categories.length > 1)
+    .slice(0, 5)
+    .map((item) => ({
+      id: `correlation-${item.region.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`,
+      region: item.region,
+      score: item.score,
+      signalCount: item.count,
+      categories: item.categories,
+      statement: `${item.categories.length} independent signal categories are active in the same operational area.`,
+    }));
+  return { layers, regions, correlations };
+};
 
 export function createApp({ config, store, liveSources, intelligence }) {
   const app = express();
@@ -137,8 +186,9 @@ export function createApp({ config, store, liveSources, intelligence }) {
       ]);
       const events = [
         ...curated,
-        ...snapshot.earthquakes,
-        ...snapshot.weather,
+        ...(snapshot.earthquakes || []),
+        ...(snapshot.weather || []),
+        ...(snapshot.natural || []),
       ].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
       const critical = events.filter(
         (event) => event.severity === "critical",
@@ -158,6 +208,7 @@ export function createApp({ config, store, liveSources, intelligence }) {
       const onlineSources = snapshot.sourceStatus.filter(
         (source) => source.status === "operational",
       ).length;
+      const operationalPicture = buildOperationalPicture(events);
       res
         .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
         .json({
@@ -176,6 +227,9 @@ export function createApp({ config, store, liveSources, intelligence }) {
             news: snapshot.news,
             sourceStatus: snapshot.sourceStatus,
             trend: trend(events.length, critical + high),
+            layers: operationalPicture.layers,
+            regions: operationalPicture.regions,
+            correlations: operationalPicture.correlations,
             generatedAt: snapshot.fetchedAt,
             mode: "live-plus-curated",
           },
@@ -239,16 +293,19 @@ export function createApp({ config, store, liveSources, intelligence }) {
           liveSources.snapshot(),
         ]);
         const brief = await intelligence.generate(
-          [...items, ...snapshot.earthquakes].slice(0, 40),
+          [
+            ...items,
+            ...(snapshot.earthquakes || []),
+            ...(snapshot.weather || []),
+            ...(snapshot.natural || []),
+          ].slice(0, 40),
           snapshot,
         );
-        res
-          .set("cache-control", "no-store")
-          .json({
-            success: true,
-            data: brief,
-            generatedAt: new Date().toISOString(),
-          });
+        res.set("cache-control", "no-store").json({
+          success: true,
+          data: brief,
+          generatedAt: new Date().toISOString(),
+        });
       } catch (error) {
         next(error);
       }
@@ -259,13 +316,11 @@ export function createApp({ config, store, liveSources, intelligence }) {
     try {
       const result = parse(loginSchema, req.body);
       if (result.error)
-        return res
-          .status(400)
-          .json({
-            success: false,
-            error: "Invalid login request",
-            details: result.error,
-          });
+        return res.status(400).json({
+          success: false,
+          error: "Invalid login request",
+          details: result.error,
+        });
       const user = await store.getUserByEmail(result.data.email);
       const valid =
         user &&
@@ -357,13 +412,11 @@ export function createApp({ config, store, liveSources, intelligence }) {
           query: String(req.query.q || "").slice(0, 100),
           limit: 200,
         });
-        res
-          .set("cache-control", "no-store")
-          .json({
-            success: true,
-            data: result.items,
-            meta: { total: result.total },
-          });
+        res.set("cache-control", "no-store").json({
+          success: true,
+          data: result.items,
+          meta: { total: result.total },
+        });
       } catch (error) {
         next(error);
       }
@@ -378,13 +431,11 @@ export function createApp({ config, store, liveSources, intelligence }) {
       try {
         const result = parse(eventSchema, req.body);
         if (result.error)
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error: "Event validation failed",
-              details: result.error,
-            });
+          return res.status(400).json({
+            success: false,
+            error: "Event validation failed",
+            details: result.error,
+          });
         const event = await store.createEvent(result.data);
         await store.addAudit({
           actorEmail: req.user.email,
@@ -408,13 +459,11 @@ export function createApp({ config, store, liveSources, intelligence }) {
       try {
         const result = parse(partialEventSchema, req.body);
         if (result.error)
-          return res
-            .status(400)
-            .json({
-              success: false,
-              error: "Event validation failed",
-              details: result.error,
-            });
+          return res.status(400).json({
+            success: false,
+            error: "Event validation failed",
+            details: result.error,
+          });
         const event = await store.updateEvent(req.params.id, result.data);
         if (!event)
           return res

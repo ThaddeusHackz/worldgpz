@@ -119,6 +119,13 @@ export const publicSources = [
     coverage: "Global",
   },
   {
+    id: "eonet",
+    name: "NASA EONET",
+    type: "Natural events",
+    cadence: "15 min",
+    coverage: "Global",
+  },
+  {
     id: "reliefweb",
     name: "ReliefWeb",
     type: "Humanitarian",
@@ -132,4 +139,47 @@ export const publicSources = [
     cadence: "Admin",
     coverage: "Global",
   },
+];
+
+export const layerCatalog = [
+  {
+    id: "conflict",
+    label: "Conflict zones",
+    group: "Security",
+    color: "#ff765f",
+  },
+  {
+    id: "humanitarian",
+    label: "Humanitarian",
+    group: "People",
+    color: "#ffad4d",
+  },
+  { id: "seismic", label: "Earthquakes", group: "Natural", color: "#f3d767" },
+  {
+    id: "climate",
+    label: "Weather & climate",
+    group: "Natural",
+    color: "#65b6ff",
+  },
+  {
+    id: "natural",
+    label: "Natural events",
+    group: "Natural",
+    color: "#8ce66a",
+  },
+  {
+    id: "infrastructure",
+    label: "Infrastructure",
+    group: "Systems",
+    color: "#b495ff",
+  },
+  { id: "cyber", label: "Cyber posture", group: "Systems", color: "#5bd9ca" },
+  {
+    id: "economy",
+    label: "Economic signals",
+    group: "Markets",
+    color: "#d7a4ff",
+  },
+  { id: "diplomacy", label: "Diplomacy", group: "Security", color: "#89a8ff" },
+  { id: "health", label: "Health", group: "People", color: "#ff8db7" },
 ];
