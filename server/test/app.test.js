@@ -3,6 +3,7 @@ import request from "supertest";
 import { Store } from "../src/store.js";
 import { createApp } from "../src/app.js";
 import { MediaService } from "../src/services/media.js";
+import { ProviderRegistry } from "../src/services/providers/registry.js";
 
 const testConfig = {
   env: "test",
@@ -20,6 +21,18 @@ const testConfig = {
   youtubeApiKey: "",
   youtubeCacheSeconds: 10_800,
   fetchTimeoutMs: 1_000,
+  newsApiKey: "",
+  ai: { apiKey: "", baseUrl: "", model: "test-model" },
+  windyApiKey: "",
+  finnhubApiKey: "",
+  firmsApiKey: "",
+  firms: { sources: ["VIIRS_SNPP_NRT"], area: "world", cacheSeconds: 60 },
+  acled: { accessToken: "", email: "", password: "" },
+  aisStreamApiKey: "",
+  openSky: { clientId: "", clientSecret: "", bbox: [-10, -30, 70, 60] },
+  cloudflareApiToken: "",
+  eiaApiKey: "",
+  fredApiKey: "",
 };
 
 const snapshot = {
@@ -75,19 +88,27 @@ beforeAll(async () => {
     localDataFile: ":memory:",
     admin: testConfig.admin,
   }).init();
+  const mediaService = new MediaService(testConfig);
+  const intelligenceService = {
+    generate: async () => ({
+      headline: "Test brief",
+      assessment: ["Verified test output"],
+      watchlist: [],
+      confidence: "rules-based",
+    }),
+    lastSuccessAt: null,
+  };
   app = createApp({
     config: testConfig,
     store,
     liveSources: { snapshot: async () => snapshot },
-    intelligence: {
-      generate: async () => ({
-        headline: "Test brief",
-        assessment: ["Verified test output"],
-        watchlist: [],
-        confidence: "rules-based",
-      }),
-    },
-    media: new MediaService(testConfig),
+    intelligence: intelligenceService,
+    media: mediaService,
+    providers: new ProviderRegistry(testConfig, {
+      media: mediaService,
+      liveSources: { snapshot: async () => snapshot },
+      intelligence: intelligenceService,
+    }),
   });
 });
 
@@ -135,6 +156,59 @@ describe("public API", () => {
       .expect(200);
     expect(response.body.success).toBe(true);
     expect(Array.isArray(response.body.data)).toBe(true);
+  });
+});
+
+describe("extended provider API", () => {
+  const endpoints = [
+    "/api/v1/webcams",
+    "/api/v1/markets",
+    "/api/v1/fires",
+    "/api/v1/conflicts",
+    "/api/v1/ships",
+    "/api/v1/flights",
+    "/api/v1/outages",
+    "/api/v1/energy",
+    "/api/v1/macro",
+  ];
+
+  it.each(endpoints)(
+    "gracefully reports not-configured when no key is set (%s)",
+    async (endpoint) => {
+      const response = await request(app).get(endpoint).expect(200);
+      expect(response.body.success).toBe(true);
+      expect(response.body.data.configured).toBe(false);
+      expect(response.body.data.status).toBe("not-configured");
+    },
+  );
+
+  it("reports every provider without leaking secrets", async () => {
+    const response = await request(app).get("/api/v1/providers").expect(200);
+    const providers = response.body.data;
+    expect(providers.length).toBe(12);
+    for (const provider of providers) {
+      expect(provider).toHaveProperty("id");
+      expect(provider).toHaveProperty("name");
+      expect(provider).toHaveProperty("status");
+      expect(provider).toHaveProperty("configured");
+    }
+    const serialized = JSON.stringify(providers);
+    expect(serialized).not.toContain("secret");
+    expect(serialized).not.toContain("token");
+    expect(serialized).not.toContain("password");
+    expect(serialized).not.toContain("Bearer ");
+  });
+
+  it("keeps extended providers out of the dashboard when unconfigured", async () => {
+    const response = await request(app).get("/api/v1/dashboard").expect(200);
+    expect(
+      response.body.data.events.some(
+        (event) => event.sourceName === "NASA FIRMS",
+      ),
+    ).toBe(false);
+    expect(
+      response.body.data.events.some((event) => event.sourceName === "ACLED"),
+    ).toBe(false);
   });
 });
 

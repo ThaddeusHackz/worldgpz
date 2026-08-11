@@ -1,145 +1,285 @@
 # API keys and live-media deployment guide
 
-Updated: 2026-08-10
+Updated: 2026-08-11
 
-## What the two requested keys enable
+All 12 recommended provider credentials are now wired into WORLDGPZ. Each
+adapter is server-side, quota-conscious (cached), and degrades gracefully to a
+`not-configured` or `degraded` state when the key is missing or failing — the
+application never crashes because of a provider.
 
-### `YOUTUBE_API_KEY`
+## Provider status at a glance
 
-WORLDGPZ uses the official YouTube Data API v3 **only on the server** to find the current live broadcast for seven curated public channels. The browser receives sanitized video metadata and a video ID, never the key.
+`GET /api/v1/providers` (public) reports every provider with `id`, `name`,
+`group`, `configured`, and `status` — one of:
 
-At runtime:
+- `operational` — last collection succeeded
+- `degraded` — key present but the provider failed (check the key/limits)
+- `connecting` — live relay is establishing a connection (AISStream)
+- `pending` — key present, first collection in progress
+- `not-configured` — no key set
 
-1. The server resolves each configured channel handle with `channels.list`.
-2. It requests the channel's current broadcast with `search.list`, `eventType=live`, and `type=video`.
-3. The shared result is cached for three hours by default.
-4. The browser displays a poster and does not load YouTube until the visitor presses Play.
-5. Playback uses YouTube's privacy-enhanced IFrame Player API.
-6. Channel changes reuse the player interface.
-7. Playback starts muted for browser autoplay compatibility.
-8. The player pauses when the tab is hidden or after five minutes without activity.
-9. If no broadcast is available, the channel is shown as offline instead of embedding an unrelated video.
+The Operations page shows all providers as status chips under the situation
+bar. Never paste a real key into chat, commits, or client code.
 
-The three-hour cache is deliberate. Seven channel searches every three hours use approximately 56 live-search calls per full day on a continuously running instance. This leaves room under the default YouTube search-request allocation, although container restarts and manual cache invalidation can increase usage.
+| Provider      | Variable(s)                                              | Status | Endpoint                          |
+| ------------- | -------------------------------------------------------- | ------ | --------------------------------- |
+| NewsAPI       | `NEWS_API_KEY`                                           | Live   | `/api/v1/news`                    |
+| YouTube Live  | `YOUTUBE_API_KEY`                                        | Live   | `/api/v1/media/channels`          |
+| AI Briefing   | `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`                  | Live   | `POST /api/v1/intelligence/brief` |
+| Windy Webcams | `WINDY_API_KEY`                                          | Live   | `/api/v1/webcams`                 |
+| Finnhub       | `FINNHUB_API_KEY`                                        | Live   | `/api/v1/markets`                 |
+| NASA FIRMS    | `NASA_FIRMS_API_KEY`                                     | Live   | `/api/v1/fires`                   |
+| ACLED         | `ACLED_ACCESS_TOKEN` or `ACLED_EMAIL` + `ACLED_PASSWORD` | Live   | `/api/v1/conflicts`               |
+| AISStream     | `AISSTREAM_API_KEY`                                      | Live   | `/api/v1/ships`                   |
+| OpenSky       | `OPENSKY_CLIENT_ID`, `OPENSKY_CLIENT_SECRET`             | Live   | `/api/v1/flights`                 |
+| Cloudflare    | `CLOUDFLARE_API_TOKEN`                                   | Live   | `/api/v1/outages`                 |
+| EIA           | `EIA_API_KEY`                                            | Live   | `/api/v1/energy`                  |
+| FRED          | `FRED_API_KEY`                                           | Live   | `/api/v1/macro`                   |
 
-#### Google Cloud setup
+Fires and conflict events are also merged into the dashboard feed
+(`/api/v1/dashboard`) and plotted on the Operations map.
 
-1. Create or select a Google Cloud project.
-2. Open **APIs & Services → Library**.
-3. Enable **YouTube Data API v3**.
-4. Open **Credentials → Create credentials → API key**.
-5. Restrict the key to **YouTube Data API v3**.
-6. Add it to Render as `YOUTUBE_API_KEY`.
-7. Keep `YOUTUBE_CACHE_SECONDS=10800` unless you have approved additional quota.
-8. Do not use a `VITE_` prefix and do not paste the key into frontend source.
+## Key-by-key setup
 
-A browser-referrer restriction is not appropriate for this server-side request path. If your Render plan provides fixed outbound IP addresses, an IP restriction can be added; otherwise use API-level restrictions, quota alerts, and key rotation.
+### 1. `YOUTUBE_API_KEY` — live channels
 
-The YouTube IFrame Player itself does not need an API key. The key is needed to discover which video is live.
+1. Google Cloud Console → enable **YouTube Data API v3**.
+2. Credentials → Create credentials → API key.
+3. Restrict the key to YouTube Data API v3.
+4. Set `YOUTUBE_API_KEY` and keep `YOUTUBE_CACHE_SECONDS=10800` (3 hours).
+5. The key is only used server-side to discover the current live broadcast for
+   seven curated channels. The IFrame Player itself needs no key.
 
-### `NEWS_API_KEY`
+Quota: seven `search.list` calls per refresh ≈ 56/day at the 3-hour cadence.
+Do not lower the cache without approved quota.
 
-WORLDGPZ calls NewsAPI from the server, caches the combined dashboard response, and falls back to ReliefWeb when NewsAPI is missing or unavailable.
+### 2. `NEWS_API_KEY` — headlines
 
-Important licensing limitation: NewsAPI's free Developer plan is for development/testing only, has delayed articles, and is not permitted for staging or production. A production Render deployment needs an eligible NewsAPI subscription or a production-licensed alternative. Server-side proxying does not remove this contractual restriction.
+Set `NEWS_API_KEY` on the server. The free Developer plan is development-only;
+a published Render deployment needs a production-eligible subscription.
+WORLDGPZ falls back to ReliefWeb automatically when NewsAPI is missing or
+failing.
 
-Set the key in Render as `NEWS_API_KEY`. Never expose it as `VITE_NEWS_API_KEY`.
+### 3. `AI_API_KEY` — intelligence brief
 
-## Keys needed to approach the broader reference feature set
+One OpenAI-compatible provider:
 
-These are not all required for the current WORLDGPZ build. Add providers only after reviewing pricing, licensing, geographic coverage, attribution, retention, and redistribution terms.
+```dotenv
+AI_API_KEY=<private key>
+AI_BASE_URL=https://api.openai.com/v1     # or https://api.groq.com/openai/v1
+AI_MODEL=gpt-4o-mini                       # or the model available in your console
+```
 
-### Highest priority
+Without a key the brief uses the rules engine with `generatedBy: "WORLDGPZ
+rules engine"`. Provider status for AI flips to `operational` after the first
+successful generated brief.
 
-| Variable                                  | Provider                   | Enables                                                  | Current WORLDGPZ status                                     |
-| ----------------------------------------- | -------------------------- | -------------------------------------------------------- | ----------------------------------------------------------- |
-| `AI_API_KEY`                              | OpenAI-compatible provider | Source-grounded intelligence briefing                    | Implemented; rules fallback works without it                |
-| `WINDY_API_KEY`                           | Windy Webcams API v3       | Global webcam locations, preview images, and player URLs | Recommended next feature; not yet integrated                |
-| `FINNHUB_API_KEY`                         | Finnhub                    | Equities and market quotes                               | Recommended for finance panel                               |
-| `ACLED_ACCESS_TOKEN` or OAuth credentials | ACLED                      | Conflict and protest events                              | Recommended; token and usage terms require review           |
-| `NASA_FIRMS_API_KEY`                      | NASA FIRMS                 | Satellite thermal/fire detections                        | Recommended; NASA EONET is already integrated without a key |
+### 4. `WINDY_API_KEY` — webcams
 
-### Advanced operations
+Get a Webcams API key at <https://api.windy.com/keys>. The adapter calls
+`/webcams/api/v3/webcams` with the `x-windy-api-key` header and keeps only
+active, popular cams. Image URLs from Windy are signed and expire quickly
+(10 minutes on the free tier), so this adapter deliberately caches for only
+60 seconds and refreshes on page load. Attribution (`Powered by Windy.com`)
+is shown in the panel. Webcam embeds load only after the user presses play.
 
-| Variable                                      | Provider         | Enables                               | Infrastructure note                                                                 |
-| --------------------------------------------- | ---------------- | ------------------------------------- | ----------------------------------------------------------------------------------- |
-| `AISSTREAM_API_KEY`                           | AISStream        | Live vessel positions                 | Requires a durable WebSocket relay and fan-out cache; not suitable as a browser key |
-| `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` | OpenSky          | Aircraft tracking                     | Requires a server relay, caching, and rate shaping                                  |
-| `CLOUDFLARE_API_TOKEN`                        | Cloudflare Radar | Internet outage signals               | Server-only; cache responses                                                        |
-| `EIA_API_KEY`                                 | U.S. EIA         | Oil prices, production, and inventory | Server-side scheduled collection recommended                                        |
-| `FRED_API_KEY`                                | Federal Reserve  | Macro indicators and rates            | Server-side caching recommended                                                     |
-| `WINGBITS_API_KEY`                            | Wingbits         | Aircraft owner/operator enrichment    | Optional after OpenSky integration                                                  |
-| `UCDP_ACCESS_TOKEN`                           | UCDP             | Conflict dataset                      | Review research/commercial terms                                                    |
+### 5. `FINNHUB_API_KEY` — markets
 
-### Infrastructure and reliability
+Register at <https://finnhub.io/register>. The adapter quotes a fixed
+watchlist (S&P 500, Nasdaq, Dow, FTSE, DAX, Nikkei, USO, BTC/USD) with
+`token` as the query parameter. Responses are cached 2 minutes (free tier ≈
+60 calls/minute).
 
-| Variable                  | Service           | Purpose                                                            |
-| ------------------------- | ----------------- | ------------------------------------------------------------------ |
-| `DATABASE_URL`            | Render PostgreSQL | Users, curated events, and audit history; already supported        |
-| Upstash/Redis credentials | Managed Redis     | Shared provider caches, job state, and multi-instance rate budgets |
-| `SENTRY_DSN`              | Sentry            | Production errors and frontend performance monitoring              |
+### 6. `NASA_FIRMS_API_KEY` — fires
 
-## Why API keys alone are not enough
+Request the free MAP key at
+<https://firms2.modaps.eosdis.nasa.gov/api/map_key/> (emailed to you). The
+adapter downloads the CSV area feed for the configured sources, parses it,
+ranks detections by fire radiative power, and caps the payload at 250
+detections.
 
-Some reference capabilities need infrastructure in addition to credentials:
+Tuning variables:
 
-- AIS and aircraft tracking are continuous streams and need a long-running relay.
-- Webcam maps need scheduled metadata seeding, geospatial indexing, short-lived image URL caching, and required provider attribution.
-- Hundreds of RSS feeds need source admission, parsing, deduplication, circuit breakers, bias metadata, and corrections.
-- Alerts need corroboration, cooldowns, notification preferences, and delivery infrastructure.
-- Live video needs embed permission checks, user-initiated playback, idle cleanup, geographic restrictions, and fallback behavior.
-- Scores need published methodology and cannot be presented as authoritative predictions.
+```dotenv
+FIRMS_SOURCES=VIIRS_SNPP_NRT,MODIS_NRT
+FIRMS_AREA=world            # or "minLon,minLat,maxLon,maxLat"
+FIRMS_CACHE_SECONDS=3600
+```
+
+The one-hour cache keeps MAP-key transactions low.
+
+### 7. ACLED — conflict events
+
+Two credential modes:
+
+```dotenv
+# Option A: a direct access token
+ACLED_ACCESS_TOKEN=<token>
+# Option B: account credentials (exchanged for a 24h OAuth token server-side)
+ACLED_EMAIL=<account-email>
+ACLED_PASSWORD=<account-password>
+```
+
+The adapter requests the 50 most recent events, maps event types to
+categories (Battles/Explosions/Violence against civilians → conflict;
+Protests/Riots → diplomacy), and derives severity from fatalities. Display
+ACLED data in accordance with their redistribution terms.
+
+### 8. `AISSTREAM_API_KEY` — live ships
+
+Generate a key at <https://aisstream.io/authenticate>. WORLDGPZ runs a single
+server-side WebSocket relay (`wss://stream.aisstream.io/v0/stream`) that
+subscribes to the global bounding box, keeps the latest 500 vessels in
+memory, and reconnects with exponential backoff (2s → 30s) after drops. The
+key never leaves the server. The relay starts lazily on first use and shuts
+down cleanly on SIGTERM.
+
+### 9. OpenSky — aircraft
+
+Create an API client on your OpenSky account page to get
+`OPENSKY_CLIENT_ID` and `OPENSKY_CLIENT_SECRET`. The server exchanges them at
+the OpenID Connect token endpoint (client-credentials grant), caches the
+access token until near expiry, and takes a bounded snapshot of the region
+every 60 seconds:
+
+```dotenv
+OPENSKY_BBOX=-10,-30,70,60   # minLat,minLon,maxLat,maxLon
+```
+
+### 10. `CLOUDFLARE_API_TOKEN` — internet outages
+
+Create a token at <https://dash.cloudflare.com/profile/api-tokens> with
+Radar read permissions only. The adapter reads
+`/radar/annotations/outages/locations` and `/radar/traffic_anomalies/locations`
+with a Bearer token; if one endpoint fails the other still reports.
+
+### 11. `EIA_API_KEY` — energy
+
+Register at <https://www.eia.gov/opendata/register.php>. The adapter reads
+WTI (Cushing), Brent (Europe), and Henry Hub natural gas series through the
+EIA v2 API with a 30-minute cache.
+
+### 12. `FRED_API_KEY` — macro
+
+Request a key at <https://fred.stlouisfed.org/docs/api/api_key.html>. The
+adapter reads fed funds, 2Y/10Y treasury yields, CPI, unemployment, and VIX
+with a one-hour cache.
+
+## Cache and quota summary
+
+| Provider   | Cache                   | Why                                      |
+| ---------- | ----------------------- | ---------------------------------------- |
+| YouTube    | 3 h                     | search quota (~56 calls/day at cadence)  |
+| NewsAPI    | 5 min (shared snapshot) | free tier 100 calls/day                  |
+| Windy      | 60 s                    | signed image URLs expire (10 min free)   |
+| Finnhub    | 2 min                   | free tier 60 calls/minute                |
+| FIRMS      | 1 h                     | MAP-key transaction budget               |
+| ACLED      | 15 min                  | data updated daily; token cached 24 h    |
+| OpenSky    | 60 s                    | authenticated call budget (4000/day)     |
+| Cloudflare | 10 min                  | Radar API budget                         |
+| EIA        | 30 min                  | weekly/daily series cadence              |
+| FRED       | 1 h                     | mostly daily series cadence              |
+| AISStream  | live relay              | continuous stream; in-memory 500 vessels |
+
+Failures are cached for at most 120 seconds so providers recover quickly.
 
 ## Render configuration
 
-In **Render → worldgpz → Environment**, set:
+Add the variables you hold in **Render → worldgpz → Environment** (all are
+declared in `.env.example` and `render.yaml`):
 
 ```dotenv
-NEWS_API_KEY=<your eligible NewsAPI key>
-YOUTUBE_API_KEY=<your restricted YouTube Data API v3 key>
+NEWS_API_KEY=
+YOUTUBE_API_KEY=
 YOUTUBE_CACHE_SECONDS=10800
+
+AI_API_KEY=
+AI_BASE_URL=https://api.groq.com/openai/v1
+AI_MODEL=llama-3.3-70b-versatile
+
+WINDY_API_KEY=
+FINNHUB_API_KEY=
+NASA_FIRMS_API_KEY=
+ACLED_ACCESS_TOKEN=
+ACLED_EMAIL=
+ACLED_PASSWORD=
+AISSTREAM_API_KEY=
+OPENSKY_CLIENT_ID=
+OPENSKY_CLIENT_SECRET=
+CLOUDFLARE_API_TOKEN=
+EIA_API_KEY=
+FRED_API_KEY=
 ```
 
-For AI briefing:
-
-```dotenv
-AI_API_KEY=<private provider key>
-AI_BASE_URL=https://api.openai.com/v1
-AI_MODEL=gpt-4o-mini
-```
-
-Then redeploy and test:
+Then redeploy and verify every key at once:
 
 ```bash
-curl -fsS https://<your-service>.onrender.com/api/v1/media/channels
-curl -fsS https://<your-service>.onrender.com/api/v1/news
+curl -fsS https://<your-service>.onrender.com/api/v1/providers
 ```
 
-Expected media response when configured:
+Every configured provider should move from `pending` to `operational` within
+a minute. Any provider stuck on `degraded` means the key is invalid, the API
+is not enabled, or a quota/terms limit applies — the error field gives a
+safe, generic reason (e.g. `Provider returned 401`).
 
-- `configured: true`
-- overall `status` is `operational`, `no-live-streams`, or `degraded`
-- each channel reports `live`, `offline`, `not-found`, `degraded`, or `quota-or-key-error`
-- no API key appears in the JSON response
+Individual endpoints:
+
+```bash
+curl -fsS https://<your-service>.onrender.com/api/v1/webcams
+curl -fsS https://<your-service>.onrender.com/api/v1/markets
+curl -fsS https://<your-service>.onrender.com/api/v1/fires
+curl -fsS https://<your-service>.onrender.com/api/v1/conflicts
+curl -fsS https://<your-service>.onrender.com/api/v1/ships
+curl -fsS https://<your-service>.onrender.com/api/v1/flights
+curl -fsS https://<your-service>.onrender.com/api/v1/outages
+curl -fsS https://<your-service>.onrender.com/api/v1/energy
+curl -fsS https://<your-service>.onrender.com/api/v1/macro
+```
 
 ## Troubleshooting
 
-### All channels say `quota-or-key-error`
+### Provider shows `degraded` after adding the key
 
-Verify that YouTube Data API v3 is enabled, the key has that API restriction, the project has remaining search quota, and Render is using the newest environment value.
+1. Confirm the exact variable name (no `VITE_` prefix) and that you redeployed.
+2. Check the provider console for an enabled API / issued key.
+3. Check quotas: YouTube search quota, NewsAPI plan, FIRMS transactions,
+   Finnhub rate limit, OpenSky daily calls.
+4. For ACLED: an account may need API access enabled; use a fresh token.
+5. For AISStream: the sandbox/network must allow outbound WebSockets.
 
-### Channel is offline but its YouTube page looks live
+### All YouTube channels say `quota-or-key-error`
 
-The shared discovery cache may still contain the earlier state. Wait for the cache interval or restart once during setup. Do not repeatedly restart production to force refreshes because each cold discovery consumes search quota.
+Verify the API is enabled, the key is restricted to YouTube Data API v3, and
+search quota remains. Do not repeatedly restart production to force refreshes
+— each cold discovery consumes quota.
+
+### Webcam images return 401
+
+Signed Windy image URLs expire. WORLDGPZ refreshes them on page load; if a
+panel has been open for a long time, reload the page.
 
 ### YouTube player error 101/150
 
-The video owner has disabled embedding. Open the linked YouTube page instead. WORLDGPZ does not attempt to bypass embed restrictions.
-
-### YouTube player error 153
-
-Confirm the deployed site sends a referrer. WORLDGPZ uses `strict-origin-when-cross-origin` and includes the site origin in the player configuration.
+The video owner disabled embedding. Open the linked YouTube page instead.
+WORLDGPZ does not bypass embed restrictions.
 
 ### NewsAPI works locally but fails on Render
 
-The NewsAPI Developer plan is not licensed for production. Upgrade or use a production-licensed news provider. ReliefWeb remains available as the built-in fallback.
+The free Developer plan is not licensed for production. Upgrade to an
+eligible plan; ReliefWeb remains the built-in fallback.
+
+### Planned (not yet integrated)
+
+`WINGBITS_API_KEY` (aircraft owner/operator enrichment) and
+`UCDP_ACCESS_TOKEN` (additional conflict dataset) are documented but not yet
+wired. Add the environment variables only after their adapters ship.
+
+## Security rules
+
+- Keys are read only in `server/src/config.js` and used only server-side.
+- No key, token, or bearer value ever appears in API responses.
+- The frontend fetches sanitized data only (`/api/v1/*`).
+- CSP allows `*.windy.com` images and `webcams.windy.com` embeds; YouTube
+  remains privacy-enhanced (`youtube-nocookie.com`).
+- Rate limiting applies to all `/api` routes; provider calls are further
+  throttled by per-provider caches.

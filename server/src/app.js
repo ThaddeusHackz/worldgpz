@@ -86,7 +86,14 @@ const buildOperationalPicture = (events) => {
   return { layers, regions, correlations };
 };
 
-export function createApp({ config, store, liveSources, intelligence, media }) {
+export function createApp({
+  config,
+  store,
+  liveSources,
+  intelligence,
+  media,
+  providers,
+}) {
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
 
@@ -112,12 +119,14 @@ export function createApp({ config, store, liveSources, intelligence, media }) {
             "https://*.tile.openstreetmap.org",
             "https://i.ytimg.com",
             "https://*.ggpht.com",
+            "https://*.windy.com",
           ],
           connectSrc: ["'self'", "https://www.youtube.com"],
           frameSrc: [
             "'self'",
             "https://www.youtube.com",
             "https://www.youtube-nocookie.com",
+            "https://webcams.windy.com",
           ],
           fontSrc: ["'self'", "data:"],
           objectSrc: ["'none'"],
@@ -188,15 +197,17 @@ export function createApp({ config, store, liveSources, intelligence, media }) {
 
   app.get("/api/v1/dashboard", async (_req, res, next) => {
     try {
-      const [{ items: curated }, snapshot] = await Promise.all([
+      const [{ items: curated }, snapshot, providerEvents] = await Promise.all([
         store.listEvents({ limit: 100 }),
         liveSources.snapshot(),
+        providers?.events() ?? Promise.resolve([]),
       ]);
       const events = [
         ...curated,
         ...(snapshot.earthquakes || []),
         ...(snapshot.weather || []),
         ...(snapshot.natural || []),
+        ...providerEvents,
       ].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
       const critical = events.filter(
         (event) => event.severity === "critical",
@@ -304,6 +315,69 @@ export function createApp({ config, store, liveSources, intelligence, media }) {
       next(error);
     }
   });
+
+  const providerRoute = (fetchData) => async (_req, res, next) => {
+    try {
+      const data = providers
+        ? await fetchData()
+        : { configured: false, status: "not-configured" };
+      res
+        .set("cache-control", "public, max-age=60, stale-while-revalidate=300")
+        .json({ success: true, data, generatedAt: new Date().toISOString() });
+    } catch (error) {
+      next(error);
+    }
+  };
+
+  // Extended provider surface: every adapter is server-side and degrades to a
+  // `not-configured` status when its key is absent.
+  app.get("/api/v1/providers", async (_req, res, next) => {
+    try {
+      res.set("cache-control", "no-store").json({
+        success: true,
+        data: providers ? providers.status() : [],
+        generatedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      next(error);
+    }
+  });
+  app.get(
+    "/api/v1/webcams",
+    providerRoute(() => providers.webcams()),
+  );
+  app.get(
+    "/api/v1/markets",
+    providerRoute(() => providers.markets()),
+  );
+  app.get(
+    "/api/v1/fires",
+    providerRoute(() => providers.fires()),
+  );
+  app.get(
+    "/api/v1/conflicts",
+    providerRoute(() => providers.conflicts()),
+  );
+  app.get(
+    "/api/v1/ships",
+    providerRoute(() => providers.ships()),
+  );
+  app.get(
+    "/api/v1/flights",
+    providerRoute(() => providers.flights()),
+  );
+  app.get(
+    "/api/v1/outages",
+    providerRoute(() => providers.outages()),
+  );
+  app.get(
+    "/api/v1/energy",
+    providerRoute(() => providers.energy()),
+  );
+  app.get(
+    "/api/v1/macro",
+    providerRoute(() => providers.macro()),
+  );
 
   app.post(
     "/api/v1/intelligence/brief",

@@ -32,6 +32,13 @@ import { Brand } from "../components/Brand.jsx";
 import YouTubePlayer from "../components/YouTubePlayer.jsx";
 import LoadingScreen from "../components/LoadingScreen.jsx";
 import WorldMap from "../components/WorldMap.jsx";
+import {
+  EnergyMacroPanel,
+  MarketsPanel,
+  ProviderChips,
+  TrackingPanel,
+  WebcamsPanel,
+} from "../components/OpsExtras.jsx";
 import { api } from "../lib/api.js";
 import { formatUtc, relativeTime, titleCase } from "../lib/format.js";
 
@@ -585,6 +592,7 @@ function CommandPalette({
 export default function Operations() {
   const navigate = useNavigate();
   const [data, setData] = useState(null);
+  const [providers, setProviders] = useState(null);
   const [error, setError] = useState("");
   const [refreshing, setRefreshing] = useState(false);
   const [region, setRegion] = useState("Global");
@@ -600,7 +608,12 @@ export default function Operations() {
     setRefreshing(true);
     setError("");
     try {
-      setData((await api("/api/v1/dashboard")).data);
+      const [dashboard, providerStatus] = await Promise.all([
+        api("/api/v1/dashboard"),
+        api("/api/v1/providers").catch(() => null),
+      ]);
+      setData(dashboard.data);
+      setProviders(providerStatus?.data || null);
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -687,6 +700,7 @@ export default function Operations() {
           </span>
         </div>
       </section>
+      <ProviderChips providers={providers} />
       {error && (
         <div className="ops-error">
           <TriangleAlert size={13} /> {error}
@@ -781,6 +795,10 @@ export default function Operations() {
           }}
         />
         <LiveChannelsPanel />
+        <WebcamsPanel />
+        <MarketsPanel />
+        <EnergyMacroPanel />
+        <TrackingPanel />
         <CorrelationPanel
           regions={data.regions || []}
           correlations={data.correlations || []}
