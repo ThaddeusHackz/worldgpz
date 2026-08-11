@@ -22,12 +22,10 @@ export async function api(path, options = {}) {
         ? JSON.stringify(options.body)
         : options.body,
   });
-  const payload = await response
-    .json()
-    .catch(() => ({
-      success: false,
-      error: "The server returned an invalid response",
-    }));
+  const payload = await response.json().catch(() => ({
+    success: false,
+    error: "The server returned an invalid response",
+  }));
   if (!response.ok) {
     const error = new Error(payload.error || "Request failed");
     error.status = response.status;

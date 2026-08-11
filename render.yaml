@@ -42,6 +42,38 @@ services:
         value: https://api.openai.com/v1
       - key: AI_MODEL
         value: gpt-4o-mini
+      - key: WINDY_API_KEY
+        sync: false
+      - key: FINNHUB_API_KEY
+        sync: false
+      - key: NASA_FIRMS_API_KEY
+        sync: false
+      - key: FIRMS_SOURCES
+        value: VIIRS_SNPP_NRT,MODIS_NRT
+      - key: FIRMS_AREA
+        value: world
+      - key: FIRMS_CACHE_SECONDS
+        value: "3600"
+      - key: ACLED_ACCESS_TOKEN
+        sync: false
+      - key: ACLED_EMAIL
+        sync: false
+      - key: ACLED_PASSWORD
+        sync: false
+      - key: AISSTREAM_API_KEY
+        sync: false
+      - key: OPENSKY_CLIENT_ID
+        sync: false
+      - key: OPENSKY_CLIENT_SECRET
+        sync: false
+      - key: OPENSKY_BBOX
+        value: -10,-30,70,60
+      - key: CLOUDFLARE_API_TOKEN
+        sync: false
+      - key: EIA_API_KEY
+        sync: false
+      - key: FRED_API_KEY
+        sync: false
 
 databases:
   - name: worldgpz-db

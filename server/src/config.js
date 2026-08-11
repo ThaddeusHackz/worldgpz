@@ -53,6 +53,35 @@ export const config = {
     ),
     model: process.env.AI_MODEL || "gpt-4o-mini",
   },
+  // Extended provider credentials. All keys stay server-side.
+  windyApiKey: process.env.WINDY_API_KEY || "",
+  finnhubApiKey: process.env.FINNHUB_API_KEY || "",
+  firmsApiKey: process.env.NASA_FIRMS_API_KEY || "",
+  firms: {
+    sources: (process.env.FIRMS_SOURCES || "VIIRS_SNPP_NRT,MODIS_NRT")
+      .split(",")
+      .map((item) => item.trim())
+      .filter(Boolean),
+    area: process.env.FIRMS_AREA || "world",
+    cacheSeconds: numberFromEnv(process.env.FIRMS_CACHE_SECONDS, 3600),
+  },
+  acled: {
+    accessToken: process.env.ACLED_ACCESS_TOKEN || "",
+    email: process.env.ACLED_EMAIL || "",
+    password: process.env.ACLED_PASSWORD || "",
+  },
+  aisStreamApiKey: process.env.AISSTREAM_API_KEY || "",
+  openSky: {
+    clientId: process.env.OPENSKY_CLIENT_ID || "",
+    clientSecret: process.env.OPENSKY_CLIENT_SECRET || "",
+    bbox: (process.env.OPENSKY_BBOX || "-10,-30,70,60")
+      .split(",")
+      .map((item) => Number(item))
+      .filter(Number.isFinite),
+  },
+  cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN || "",
+  eiaApiKey: process.env.EIA_API_KEY || "",
+  fredApiKey: process.env.FRED_API_KEY || "",
 };
 
 export function validateProductionConfig() {

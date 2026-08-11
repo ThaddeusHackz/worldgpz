@@ -78,6 +78,7 @@ export class IntelligenceService {
       const parsed = JSON.parse(payload.choices?.[0]?.message?.content || "{}");
       if (!parsed.headline || !Array.isArray(parsed.assessment))
         throw new Error("AI response did not match the required shape");
+      this.lastSuccessAt = new Date().toISOString();
       return {
         ...parsed,
         generatedBy: `${this.config.ai.model} via configured provider`,
