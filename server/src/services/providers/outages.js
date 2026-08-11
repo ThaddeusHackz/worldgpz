@@ -1,9 +1,8 @@
 import { ProviderBase } from "./base.js";
 
 /**
- * Cloudflare Radar — internet outages and traffic anomalies by location.
- * Docs: https://developers.cloudflare.com/radar/
- * Auth: `Authorization: Bearer <API token>`.
+ * Cloudflare Radar — verified Internet outage annotations and automatically
+ * detected traffic anomalies grouped by country.
  */
 export class CloudflareService extends ProviderBase {
   constructor(config, options = {}) {
@@ -29,24 +28,35 @@ export class CloudflareService extends ProviderBase {
         Authorization: `Bearer ${this.config.cloudflareApiToken}`,
       },
     });
-    if (payload.success === false)
-      throw new Error(`Cloudflare Radar rejected the request`);
+    if (payload.success === false) {
+      const error = new Error("Cloudflare Radar rejected the request");
+      error.code = "provider-error";
+      throw error;
+    }
     return payload.result || {};
   }
 
   async #outages() {
     const result = await this.#get("annotations/outages/locations", {
+      dateRange: "7d",
       limit: 20,
     });
-    return (result.locations || []).map((entry) => ({
-      location: entry.locationName || entry.locationCode || "Unknown",
-      code: entry.locationCode || null,
+    // The current v4 contract returns result.annotations, not locations.
+    return (result.annotations || result.locations || []).map((entry) => ({
+      location:
+        entry.clientCountryName ||
+        entry.locationName ||
+        entry.locationCode ||
+        "Unknown",
+      code: entry.clientCountryAlpha2 || entry.locationCode || null,
       kind: "outage",
-      count:
-        entry.outages?.outageCount ??
-        entry.outages?.outageCountTotal ??
-        entry.outageCount ??
-        1,
+      count: Number(
+        entry.value ??
+          entry.outages?.outageCount ??
+          entry.outages?.outageCountTotal ??
+          entry.outageCount ??
+          0,
+      ),
       asnCount: Array.isArray(entry.outages?.asns)
         ? entry.outages.asns.length
         : 0,
@@ -55,18 +65,26 @@ export class CloudflareService extends ProviderBase {
 
   async #anomalies() {
     const result = await this.#get("traffic_anomalies/locations", {
-      dateRange: "1d",
+      dateRange: "7d",
+      status: "VERIFIED",
       limit: 20,
     });
-    return (result.locations || []).map((entry) => ({
-      location: entry.locationName || entry.locationCode || "Unknown",
-      code: entry.locationCode || null,
+    // The current v4 contract returns result.trafficAnomalies.
+    return (result.trafficAnomalies || result.locations || []).map((entry) => ({
+      location:
+        entry.clientCountryName ||
+        entry.locationName ||
+        entry.locationCode ||
+        "Unknown",
+      code: entry.clientCountryAlpha2 || entry.locationCode || null,
       kind: "anomaly",
-      count:
-        entry.anomalies?.anomalyCount ??
-        entry.anomalies?.anomalyCountTotal ??
-        entry.anomalyCount ??
-        1,
+      count: Number(
+        entry.value ??
+          entry.anomalies?.anomalyCount ??
+          entry.anomalies?.anomalyCountTotal ??
+          entry.anomalyCount ??
+          0,
+      ),
       asnCount: Array.isArray(entry.anomalies?.asns)
         ? entry.anomalies.asns.length
         : 0,
@@ -78,22 +96,17 @@ export class CloudflareService extends ProviderBase {
       this.#outages(),
       this.#anomalies(),
     ]);
-    const items = [];
-    if (outages.status === "fulfilled") items.push(...outages.value);
-    if (anomalies.status === "fulfilled") items.push(...anomalies.value);
-    if (!items.length) {
-      const firstError =
-        outages.status === "rejected"
-          ? outages.reason
-          : anomalies.status === "rejected"
-            ? anomalies.reason
-            : null;
-      throw firstError || new Error("Cloudflare Radar returned no locations");
-    }
+    if (outages.status === "rejected" && anomalies.status === "rejected")
+      throw outages.reason;
+
+    const outageItems = outages.status === "fulfilled" ? outages.value : [];
+    const anomalyItems =
+      anomalies.status === "fulfilled" ? anomalies.value : [];
     return {
-      items: items.slice(0, 40),
-      outages: outages.status === "fulfilled" ? outages.value.length : 0,
-      anomalies: anomalies.status === "fulfilled" ? anomalies.value.length : 0,
+      items: [...outageItems, ...anomalyItems].slice(0, 40),
+      outages: outageItems.length,
+      anomalies: anomalyItems.length,
+      window: "last 7 days",
       degradedParts: [
         outages.status === "rejected" ? "outages" : null,
         anomalies.status === "rejected" ? "anomalies" : null,

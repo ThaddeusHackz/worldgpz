@@ -20,7 +20,10 @@ export const config = {
   root,
   env: process.env.NODE_ENV || "development",
   port: numberFromEnv(process.env.PORT, 4000),
-  appUrl: process.env.APP_URL || "http://localhost:4000",
+  appUrl:
+    process.env.APP_URL ||
+    process.env.RENDER_EXTERNAL_URL ||
+    "http://localhost:4000",
   corsOrigins: (process.env.CORS_ORIGINS || "http://localhost:5173")
     .split(",")
     .map((origin) => origin.trim())
@@ -78,6 +81,7 @@ export const config = {
       .split(",")
       .map((item) => Number(item))
       .filter(Number.isFinite),
+    timeoutMs: numberFromEnv(process.env.OPENSKY_TIMEOUT_MS, 20_000),
   },
   cloudflareApiToken: process.env.CLOUDFLARE_API_TOKEN || "",
   eiaApiKey: process.env.EIA_API_KEY || "",

@@ -4,7 +4,7 @@ The project is designed to deploy as one Node web service plus one PostgreSQL da
 
 ## 1. Rotate previously exposed credentials
 
-Before deployment, revoke the old NewsAPI and YouTube keys that appeared in the previous tracked documentation. Do not reuse them. Create fresh provider keys only if you need those optional integrations.
+Before deployment, revoke the old NewsAPI and YouTube keys that appeared in the previous tracked documentation. Also rotate every administrator, database, JWT, API, OAuth, and AI credential ever pasted into chat, an issue, a screenshot, or another non-secret channel. Do not reuse them. Store replacement values only in Render's environment and the provider consoles.
 
 ## 2. Prepare private production values
 
@@ -32,6 +32,8 @@ Render generates `JWT_SECRET` automatically from the Blueprint. Never put any of
    - optional restricted `YOUTUBE_API_KEY`
    - optional `OPENWEATHER_API_KEY`
    - optional `AI_API_KEY`
+   - the other optional provider credentials listed in
+     [`API_KEYS_AND_LIVE_MEDIA.md`](API_KEYS_AND_LIVE_MEDIA.md)
 8. Apply the Blueprint and wait for the first deployment.
 
 If the `free` database plan is unavailable for your account or region, choose Render's current lowest-cost PostgreSQL plan and update the `plan` value in `render.yaml` before applying the Blueprint.
@@ -53,6 +55,12 @@ Expected shape:
   "version": "2.0.0",
   "database": "postgresql"
 }
+```
+
+Run the complete public-route/provider scan:
+
+```bash
+npm run scan:live -- https://<service>.onrender.com
 ```
 
 Then verify manually:
@@ -102,9 +110,9 @@ No `VITE_API_URL` is required because the browser uses same-origin `/api` URLs.
 
 One of `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, or `DATABASE_URL` is missing or invalid. Check the service environment. The Blueprint should inject the database URL and generate the JWT secret.
 
-### Admin password changed in Render but login still uses the old value
+### Admin password rotation
 
-The environment password only bootstraps a missing admin account. It intentionally does not overwrite an existing password at every restart. Use a controlled PostgreSQL credential reset or a future password-reset route.
+Change `ADMIN_PASSWORD` in Render and redeploy. Startup reconciles the configured password to the existing bootstrap account with the same `ADMIN_EMAIL`, invalidating the old password. If `ADMIN_EMAIL` itself changes, review and remove the old administrator deliberately rather than leaving multiple accounts.
 
 ### Public sources show “degraded”
 

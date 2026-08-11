@@ -74,23 +74,23 @@ npm start
 
 All provider credentials belong in the **server environment**. Never prefix private values with `VITE_`; Vite variables are compiled into the public browser bundle.
 
-| Variable                | Required            | Purpose                                                              |
-| ----------------------- | ------------------- | -------------------------------------------------------------------- |
-| `JWT_SECRET`            | Production          | Signs administrator sessions; 32+ random characters                  |
-| `ADMIN_EMAIL`           | Production          | Bootstrap administrator email                                        |
-| `ADMIN_PASSWORD`        | Production          | Bootstrap password; 12+ characters                                   |
-| `DATABASE_URL`          | Production          | PostgreSQL connection string (injected by Render)                    |
-| `DATABASE_SSL`          | No                  | Set `true` only when your external PostgreSQL provider requires it   |
-| `NEWS_API_KEY`          | No                  | Adds NewsAPI headlines; ReliefWeb remains the fallback               |
-| `YOUTUBE_API_KEY`       | No                  | Discovers current live broadcasts; remains server-side               |
-| `YOUTUBE_CACHE_SECONDS` | No                  | Live-discovery cache; defaults to 10,800 seconds (3 hours)           |
-| `OPENWEATHER_API_KEY`   | No                  | Reserved for an additional weather provider; Open-Meteo needs no key |
-| `AI_API_KEY`            | No                  | Enables an OpenAI-compatible briefing provider                       |
-| `AI_BASE_URL`           | No                  | Defaults to `https://api.openai.com/v1`                              |
-| `AI_MODEL`              | No                  | Defaults to `gpt-4o-mini`                                            |
-| `CORS_ORIGINS`          | Local/split hosting | Comma-separated allowed browser origins                              |
+| Variable                | Required            | Purpose                                                                      |
+| ----------------------- | ------------------- | ---------------------------------------------------------------------------- |
+| `JWT_SECRET`            | Production          | Signs administrator sessions; 32+ random characters                          |
+| `ADMIN_EMAIL`           | Production          | Bootstrap administrator email                                                |
+| `ADMIN_PASSWORD`        | Production          | Bootstrap password; 12+ characters                                           |
+| `DATABASE_URL`          | Production          | PostgreSQL connection string (injected by Render)                            |
+| `DATABASE_SSL`          | No                  | Set `true` only when your external PostgreSQL provider requires it           |
+| `NEWS_API_KEY`          | No                  | Adds NewsAPI headlines; ReliefWeb remains the fallback                       |
+| `YOUTUBE_API_KEY`       | No                  | Discovers current live broadcasts; remains server-side                       |
+| `YOUTUBE_CACHE_SECONDS` | No                  | Live-discovery cache; defaults to 10,800 seconds (3 hours)                   |
+| `OPENWEATHER_API_KEY`   | No                  | Adds eight global current-weather watch points; Open-Meteo remains available |
+| `AI_API_KEY`            | No                  | Enables an OpenAI-compatible briefing provider                               |
+| `AI_BASE_URL`           | No                  | Defaults to `https://api.openai.com/v1`                                      |
+| `AI_MODEL`              | No                  | Defaults to `gpt-4o-mini`                                                    |
+| `CORS_ORIGINS`          | Local/split hosting | Comma-separated allowed browser origins                                      |
 
-The bootstrap admin is created only when its email does not already exist. Changing `ADMIN_PASSWORD` later does **not** overwrite an existing database password. For a production credential rotation, add a dedicated password-reset workflow or replace the bootstrap user deliberately in PostgreSQL.
+The bootstrap admin is created when its email does not exist. On later starts, the configured `ADMIN_NAME` and `ADMIN_PASSWORD` are reconciled to that bootstrap account, so rotating the password in Render and redeploying invalidates the previous password.
 
 ## Scripts
 
@@ -100,6 +100,7 @@ npm run build        # Optimized frontend build
 npm start            # Express API + built frontend
 npm test             # Server integration and client unit tests
 npm run verify       # Tests + build + production dependency audit
+npm run scan:live -- https://worldgpz.onrender.com  # Safe public-route/provider scan
 ```
 
 ## API summary
@@ -111,6 +112,9 @@ npm run verify       # Tests + build + production dependency audit
 - `GET /api/v1/events`
 - `GET /api/v1/sources`
 - `GET /api/v1/news`
+- `GET /api/v1/providers`
+- `GET /api/v1/media/channels`
+- `GET /api/v1/webcams|weather|markets|fires|conflicts|ships|flights|outages|energy|macro`
 - `POST /api/v1/intelligence/brief`
 
 ### Authentication
@@ -133,6 +137,7 @@ worldgpz/
 ├── client/              React application and static brand assets
 ├── server/              API, persistence, source adapters, and tests
 ├── docs/                audit and deployment runbooks
+├── scripts/             safe production diagnostics
 ├── .env.example         safe configuration template
 ├── render.yaml          one-click Render Blueprint
 └── package.json         npm workspaces and verification scripts

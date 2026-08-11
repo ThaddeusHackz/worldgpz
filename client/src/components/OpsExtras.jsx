@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import {
   Activity,
   Camera,
+  CloudSun,
   ExternalLink,
   Fuel,
   Plane,
@@ -126,7 +127,7 @@ export function ProviderChips({ providers }) {
           <span
             key={provider.id}
             className={`ops-chip ${chipStatusClass(provider.status)}`}
-            title={`${provider.name}: ${provider.status}`}
+            title={`${provider.name}: ${provider.status}${provider.error ? ` — ${provider.error}` : ""}`}
           >
             <i />
             {provider.name}
@@ -201,12 +202,23 @@ export function WebcamsPanel() {
                         .join(", ") || "Worldwide"}
                     </small>
                   </span>
-                  <button
-                    onClick={() => setActiveId(webcam.id)}
-                    aria-label={`Watch ${webcam.title}`}
-                  >
-                    <Play size={11} fill="currentColor" />
-                  </button>
+                  {webcam.playerUrl ? (
+                    <button
+                      onClick={() => setActiveId(webcam.id)}
+                      aria-label={`Watch ${webcam.title}`}
+                    >
+                      <Play size={11} fill="currentColor" />
+                    </button>
+                  ) : (
+                    <a
+                      href={webcam.windyUrl}
+                      target="_blank"
+                      rel="noreferrer"
+                      aria-label={`Open ${webcam.title} on Windy`}
+                    >
+                      <ExternalLink size={11} />
+                    </a>
+                  )}
                 </article>
               ))}
             </div>
@@ -222,6 +234,59 @@ export function WebcamsPanel() {
                 OPEN ON WINDY <ExternalLink size={9} />
               </a>
             )}
+          </footer>
+        </div>
+      )}
+    </section>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Weather watch points (OpenWeather)                                  */
+/* ------------------------------------------------------------------ */
+
+export function WeatherPanel() {
+  const { data, error, reload } = useProviderData("/api/v1/weather");
+  return (
+    <section className="ops-panel ops-weather">
+      <PanelHeader
+        icon={<CloudSun size={14} />}
+        title="Global weather"
+        data={data}
+        action={reload}
+      />
+      {!data && !error && (
+        <div className="ops-empty">Loading weather watch points…</div>
+      )}
+      {error && <PanelError message={error} />}
+      {data?.status === "not-configured" && (
+        <NotConfigured>OPENWEATHER_API_KEY on the server</NotConfigured>
+      )}
+      {data?.status === "degraded" && (
+        <PanelError message={data.error || "OpenWeather feed unavailable"} />
+      )}
+      {data?.status === "operational" && (
+        <div className="ops-tracking-list">
+          {data.observations.slice(0, 8).map((item) => (
+            <div className="ops-tracking-row" key={item.id}>
+              <span>
+                <strong>{item.name}</strong>
+                <small>{item.condition}</small>
+              </span>
+              <em
+                className={
+                  ["critical", "high"].includes(item.severity) ? "bad" : ""
+                }
+              >
+                {Number.isFinite(item.temperatureC)
+                  ? `${item.temperatureC.toFixed(1)}°C`
+                  : "—"}
+              </em>
+              <b>{item.windSpeedKmh.toFixed(0)} km/h</b>
+            </div>
+          ))}
+          <footer className="ops-panel-note">
+            {data.coverage} · {data.attribution}
           </footer>
         </div>
       )}

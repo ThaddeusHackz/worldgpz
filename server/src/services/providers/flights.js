@@ -1,15 +1,12 @@
-import { ProviderBase } from "./base.js";
+import { ProviderBase, errorCodeFor } from "./base.js";
 
 /**
- * OpenSky Network — live aircraft positions.
- * Docs: https://openskynetwork.github.io/opensky-api/rest.html
- *
- * Auth (OAuth2 client-credentials, required for accounts created after
- * March 2025): exchange OPENSKY_CLIENT_ID / OPENSKY_CLIENT_SECRET at the
- * OpenID Connect token endpoint, then send the access token as a Bearer
- * header on every request. Tokens are cached until shortly before expiry.
+ * OpenSky Network live aircraft positions using OAuth2 client credentials.
+ * OpenSky's states endpoint can be slow for continent-scale boxes, so this
+ * adapter uses a 20-second provider timeout and a bounded regional retry.
  */
 const MAX_AIRCRAFT = 300;
+const REGIONAL_FALLBACK_BBOX = [35, -10, 60, 30];
 
 const STATES_INDEX = {
   icao24: 0,
@@ -32,12 +29,24 @@ const STATES_INDEX = {
   category: 17,
 };
 
+const validBbox = (bbox) =>
+  Array.isArray(bbox) &&
+  bbox.length === 4 &&
+  bbox.every(Number.isFinite) &&
+  bbox[0] >= -90 &&
+  bbox[2] <= 90 &&
+  bbox[1] >= -180 &&
+  bbox[3] <= 180 &&
+  bbox[0] < bbox[2] &&
+  bbox[1] < bbox[3];
+
 export class OpenSkyService extends ProviderBase {
   constructor(config, options = {}) {
     super(config, {
       name: "OpenSky",
       group: "Flights",
       cacheSeconds: 60,
+      timeoutMs: config.openSky?.timeoutMs || 20_000,
       ...options,
     });
     this.token = null;
@@ -60,27 +69,58 @@ export class OpenSkyService extends ProviderBase {
         client_secret: this.config.openSky.clientSecret,
       },
     );
-    if (!payload.access_token)
-      throw new Error("OpenSky token exchange returned no access token");
+    if (!payload.access_token) {
+      const error = new Error(
+        "OpenSky token exchange returned no access token",
+      );
+      error.code = "credential-rejected";
+      throw error;
+    }
     const expiresIn = Number(payload.expires_in) || 1800;
     this.token = payload.access_token;
-    this.tokenExpiresAt = Date.now() + (expiresIn - 60) * 1000;
+    this.tokenExpiresAt = Date.now() + Math.max(60, expiresIn - 60) * 1000;
     return this.token;
   }
 
-  async collect() {
-    const token = await this.#accessToken();
-    const [lamin, lomin, lamax, lomax] = this.config.openSky.bbox;
+  async #states(token, bbox) {
+    const [lamin, lomin, lamax, lomax] = bbox;
     const url = new URL("https://opensky-network.org/api/states/all");
     url.searchParams.set("lamin", String(lamin));
     url.searchParams.set("lomin", String(lomin));
     url.searchParams.set("lamax", String(lamax));
     url.searchParams.set("lomax", String(lomax));
-    const payload = await this.fetchJson(url, {
+    return this.fetchJson(url, {
       headers: { Authorization: `Bearer ${token}` },
     });
+  }
+
+  async collect() {
+    const requestedBbox = validBbox(this.config.openSky.bbox)
+      ? this.config.openSky.bbox
+      : REGIONAL_FALLBACK_BBOX;
+    const token = await this.#accessToken();
+    let effectiveBbox = requestedBbox;
+    let coverage = "configured bounding box";
+    let payload;
+    try {
+      payload = await this.#states(token, requestedBbox);
+    } catch (error) {
+      const area =
+        (requestedBbox[2] - requestedBbox[0]) *
+        (requestedBbox[3] - requestedBbox[1]);
+      if (errorCodeFor(error) !== "timeout" || area < 2_000) throw error;
+      // Preserve live functionality when a very large OpenSky query times out.
+      // The response explicitly labels the narrower coverage.
+      effectiveBbox = REGIONAL_FALLBACK_BBOX;
+      coverage = "regional fallback after large-window timeout";
+      payload = await this.#states(token, effectiveBbox);
+    }
     const states = payload.states || [];
-    if (!states.length) throw new Error("OpenSky returned no aircraft states");
+    if (!states.length) {
+      const error = new Error("OpenSky returned no aircraft states");
+      error.code = "no-data";
+      throw error;
+    }
 
     const inAir = states
       .filter((row) => !row[STATES_INDEX.onGround])
@@ -113,7 +153,9 @@ export class OpenSkyService extends ProviderBase {
       aircraft: inAir,
       total: inAir.length,
       window: "current snapshot",
-      bbox: [lamin, lomin, lamax, lomax],
+      bbox: effectiveBbox,
+      requestedBbox,
+      coverage,
     };
   }
 }

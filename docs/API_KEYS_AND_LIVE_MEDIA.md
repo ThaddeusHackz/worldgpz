@@ -2,7 +2,7 @@
 
 Updated: 2026-08-11
 
-All 12 recommended provider credentials are now wired into WORLDGPZ. Each
+All 13 configured provider integrations are now wired into WORLDGPZ. Each
 adapter is server-side, quota-conscious (cached), and degrades gracefully to a
 `not-configured` or `degraded` state when the key is missing or failing — the
 application never crashes because of a provider.
@@ -24,6 +24,7 @@ bar. Never paste a real key into chat, commits, or client code.
 | Provider      | Variable(s)                                              | Status | Endpoint                          |
 | ------------- | -------------------------------------------------------- | ------ | --------------------------------- |
 | NewsAPI       | `NEWS_API_KEY`                                           | Live   | `/api/v1/news`                    |
+| OpenWeather   | `OPENWEATHER_API_KEY`                                    | Live   | `/api/v1/weather`                 |
 | YouTube Live  | `YOUTUBE_API_KEY`                                        | Live   | `/api/v1/media/channels`          |
 | AI Briefing   | `AI_API_KEY`, `AI_BASE_URL`, `AI_MODEL`                  | Live   | `POST /api/v1/intelligence/brief` |
 | Windy Webcams | `WINDY_API_KEY`                                          | Live   | `/api/v1/webcams`                 |
@@ -36,8 +37,8 @@ bar. Never paste a real key into chat, commits, or client code.
 | EIA           | `EIA_API_KEY`                                            | Live   | `/api/v1/energy`                  |
 | FRED          | `FRED_API_KEY`                                           | Live   | `/api/v1/macro`                   |
 
-Fires and conflict events are also merged into the dashboard feed
-(`/api/v1/dashboard`) and plotted on the Operations map.
+Fires, conflict events, and OpenWeather observations are also merged into the
+dashboard feed (`/api/v1/dashboard`) and plotted on the Operations map.
 
 ## Key-by-key setup
 
@@ -59,6 +60,15 @@ Set `NEWS_API_KEY` on the server. The free Developer plan is development-only;
 a published Render deployment needs a production-eligible subscription.
 WORLDGPZ falls back to ReliefWeb automatically when NewsAPI is missing or
 failing.
+
+### `OPENWEATHER_API_KEY` — global current weather
+
+Create a key in the OpenWeather console and enable the free Current Weather API.
+WORLDGPZ calls `/data/2.5/weather` for eight globally distributed watch points,
+caches observations for 10 minutes, displays them in the Operations room, and
+adds source-attributed climate observations to the map. This does not require a
+One Call 3.0 subscription. The key remains server-side; Open-Meteo continues as
+the keyless baseline source.
 
 ### 3. `AI_API_KEY` — intelligence brief
 
@@ -86,9 +96,10 @@ is shown in the panel. Webcam embeds load only after the user presses play.
 ### 5. `FINNHUB_API_KEY` — markets
 
 Register at <https://finnhub.io/register>. The adapter quotes a fixed
-watchlist (S&P 500, Nasdaq, Dow, FTSE, DAX, Nikkei, USO, BTC/USD) with
-`token` as the query parameter. Responses are cached 2 minutes (free tier ≈
-60 calls/minute).
+watchlist of explicitly labelled liquid ETF proxies (S&P 500, Nasdaq 100, Dow,
+United Kingdom, Germany, Japan, WTI) plus BTC/USD, with `token` as the query
+parameter. This avoids unsupported caret-prefixed index symbols on the free
+quote plan. Responses are cached 2 minutes (free tier ≈ 60 calls/minute).
 
 ### 6. `NASA_FIRMS_API_KEY` — fires
 
@@ -120,7 +131,7 @@ ACLED_EMAIL=<account-email>
 ACLED_PASSWORD=<account-password>
 ```
 
-The adapter requests the 50 most recent events, maps event types to
+The adapter requests up to 100 events from the last 30 days, maps event types to
 categories (Battles/Explosions/Violence against civilians → conflict;
 Protests/Riots → diplomacy), and derives severity from fatalities. Display
 ACLED data in accordance with their redistribution terms.
@@ -132,7 +143,9 @@ server-side WebSocket relay (`wss://stream.aisstream.io/v0/stream`) that
 subscribes to the global bounding box, keeps the latest 500 vessels in
 memory, and reconnects with exponential backoff (2s → 30s) after drops. The
 key never leaves the server. The relay starts lazily on first use and shuts
-down cleanly on SIGTERM.
+down cleanly on SIGTERM. AISStream had open upstream WebSocket/TLS outage
+reports in August 2026; WORLDGPZ reports those as `degraded` and deliberately
+does not disable TLS verification.
 
 ### 9. OpenSky — aircraft
 
@@ -144,12 +157,17 @@ every 60 seconds:
 
 ```dotenv
 OPENSKY_BBOX=-10,-30,70,60   # minLat,minLon,maxLat,maxLon
+OPENSKY_TIMEOUT_MS=20000
 ```
+
+A very large box that times out is retried once with an explicitly labelled
+regional window so the panel can remain useful without claiming global
+coverage.
 
 ### 10. `CLOUDFLARE_API_TOKEN` — internet outages
 
-Create a token at <https://dash.cloudflare.com/profile/api-tokens> with
-Radar read permissions only. The adapter reads
+Create a token at <https://dash.cloudflare.com/profile/api-tokens> with at
+least **User Details Read**, which the current Radar endpoints require. The adapter reads
 `/radar/annotations/outages/locations` and `/radar/traffic_anomalies/locations`
 with a Bearer token; if one endpoint fails the other still reports.
 
@@ -167,19 +185,20 @@ with a one-hour cache.
 
 ## Cache and quota summary
 
-| Provider   | Cache                   | Why                                      |
-| ---------- | ----------------------- | ---------------------------------------- |
-| YouTube    | 3 h                     | search quota (~56 calls/day at cadence)  |
-| NewsAPI    | 5 min (shared snapshot) | free tier 100 calls/day                  |
-| Windy      | 60 s                    | signed image URLs expire (10 min free)   |
-| Finnhub    | 2 min                   | free tier 60 calls/minute                |
-| FIRMS      | 1 h                     | MAP-key transaction budget               |
-| ACLED      | 15 min                  | data updated daily; token cached 24 h    |
-| OpenSky    | 60 s                    | authenticated call budget (4000/day)     |
-| Cloudflare | 10 min                  | Radar API budget                         |
-| EIA        | 30 min                  | weekly/daily series cadence              |
-| FRED       | 1 h                     | mostly daily series cadence              |
-| AISStream  | live relay              | continuous stream; in-memory 500 vessels |
+| Provider    | Cache                   | Why                                      |
+| ----------- | ----------------------- | ---------------------------------------- |
+| YouTube     | 3 h                     | search quota (~56 calls/day at cadence)  |
+| NewsAPI     | 5 min (shared snapshot) | free tier 100 calls/day                  |
+| OpenWeather | 10 min                  | eight current-condition watch points     |
+| Windy       | 60 s                    | signed image URLs expire (10 min free)   |
+| Finnhub     | 2 min                   | free tier 60 calls/minute                |
+| FIRMS       | 1 h                     | MAP-key transaction budget               |
+| ACLED       | 15 min                  | data updated daily; token cached 24 h    |
+| OpenSky     | 60 s                    | authenticated call budget (4000/day)     |
+| Cloudflare  | 10 min                  | Radar API budget                         |
+| EIA         | 30 min                  | weekly/daily series cadence              |
+| FRED        | 1 h                     | mostly daily series cadence              |
+| AISStream   | live relay              | continuous stream; in-memory 500 vessels |
 
 Failures are cached for at most 120 seconds so providers recover quickly.
 
@@ -198,6 +217,7 @@ AI_BASE_URL=https://api.groq.com/openai/v1
 AI_MODEL=llama-3.3-70b-versatile
 
 WINDY_API_KEY=
+OPENWEATHER_API_KEY=
 FINNHUB_API_KEY=
 NASA_FIRMS_API_KEY=
 ACLED_ACCESS_TOKEN=
@@ -206,6 +226,7 @@ ACLED_PASSWORD=
 AISSTREAM_API_KEY=
 OPENSKY_CLIENT_ID=
 OPENSKY_CLIENT_SECRET=
+OPENSKY_TIMEOUT_MS=20000
 CLOUDFLARE_API_TOKEN=
 EIA_API_KEY=
 FRED_API_KEY=
@@ -214,18 +235,21 @@ FRED_API_KEY=
 Then redeploy and verify every key at once:
 
 ```bash
+npm run scan:live -- https://<your-service>.onrender.com
 curl -fsS https://<your-service>.onrender.com/api/v1/providers
 ```
 
-Every configured provider should move from `pending` to `operational` within
-a minute. Any provider stuck on `degraded` means the key is invalid, the API
-is not enabled, or a quota/terms limit applies — the error field gives a
-safe, generic reason (e.g. `Provider returned 401`).
+Configured request/response providers should move from `pending` to
+`operational` after their first collection. A provider on `degraded` can mean
+invalid credentials, missing account permission, quota exhaustion, timeout, or
+an upstream outage. Use the public-safe `errorCode` and Render logs; never add
+raw credentials to diagnostic output.
 
 Individual endpoints:
 
 ```bash
 curl -fsS https://<your-service>.onrender.com/api/v1/webcams
+curl -fsS https://<your-service>.onrender.com/api/v1/weather
 curl -fsS https://<your-service>.onrender.com/api/v1/markets
 curl -fsS https://<your-service>.onrender.com/api/v1/fires
 curl -fsS https://<your-service>.onrender.com/api/v1/conflicts

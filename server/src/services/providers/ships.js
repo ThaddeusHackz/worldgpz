@@ -29,6 +29,8 @@ export class AisStreamService extends ProviderBase {
     this.lastMessageAt = null;
     this.messageCount = 0;
     this.lastError = null;
+    this.lastErrorCode = null;
+    this.disconnectedAt = null;
     this.reconnectDelayMs = 2_000;
     this.reconnectTimer = null;
     this.closed = false;
@@ -129,6 +131,7 @@ export class AisStreamService extends ProviderBase {
         this.connectedAt = new Date().toISOString();
         this.reconnectDelayMs = 2_000;
         this.lastError = null;
+        this.lastErrorCode = null;
         this.#subscribe();
       };
       socket.onmessage = (event) => {
@@ -139,11 +142,18 @@ export class AisStreamService extends ProviderBase {
         if (raw != null) this.#handleMessage(raw);
       };
       socket.onerror = (event) => {
-        this.lastError = event?.message || "AISStream socket error";
+        const underlying = event?.error || event;
+        this.lastError =
+          underlying?.cause?.code === "CERT_HAS_EXPIRED" ||
+          underlying?.code === "CERT_HAS_EXPIRED"
+            ? "AISStream TLS certificate is invalid upstream"
+            : "AISStream connection could not be established";
+        this.lastErrorCode = "upstream-unavailable";
       };
       socket.onclose = () => {
         this.socket = null;
         this.connecting = false;
+        this.disconnectedAt = new Date().toISOString();
         this.#scheduleReconnect();
       };
     } catch (error) {
@@ -169,12 +179,15 @@ export class AisStreamService extends ProviderBase {
         String(b.timestamp || "").localeCompare(String(a.timestamp || "")),
       )
       .slice(0, 40);
-    const status = this.connectedAt
+    const connected = Boolean(
+      this.socket && this.socket.readyState === this.WebSocketImpl.OPEN,
+    );
+    const status = connected
       ? "operational"
-      : this.connecting || this.socket
-        ? "connecting"
-        : this.lastError
-          ? "degraded"
+      : this.lastError
+        ? "degraded"
+        : this.connecting || this.socket
+          ? "connecting"
           : "pending";
     this.cache = {
       configured: true,
@@ -182,13 +195,20 @@ export class AisStreamService extends ProviderBase {
       name: this.name,
       group: this.group,
       checkedAt: new Date().toISOString(),
-      connected: Boolean(this.connectedAt),
+      connected,
       vessels,
       vesselCount: this.vessels.size,
       messageCount: this.messageCount,
       lastMessageAt: this.lastMessageAt,
       connectedAt: this.connectedAt,
+      disconnectedAt: this.disconnectedAt || null,
       lastError: this.lastError,
+      error: this.lastError,
+      errorCode: this.lastErrorCode || null,
+      providerNotice:
+        status === "degraded"
+          ? "Upstream WebSocket unavailable; secure TLS verification remains enabled"
+          : null,
       window: "live AIS relay",
     };
     return this.cache;

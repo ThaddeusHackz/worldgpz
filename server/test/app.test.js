@@ -33,6 +33,7 @@ const testConfig = {
   cloudflareApiToken: "",
   eiaApiKey: "",
   fredApiKey: "",
+  weatherApiKey: "",
 };
 
 const snapshot = {
@@ -121,6 +122,20 @@ describe("public API", () => {
     expect(JSON.stringify(response.body)).not.toContain(testConfig.jwtSecret);
   });
 
+  it("permits the deployed same origin and rejects an unrelated browser origin", async () => {
+    await request(app)
+      .get("/api/health")
+      .set("Host", "worldgpz.onrender.com")
+      .set("Origin", "https://worldgpz.onrender.com")
+      .expect(200)
+      .expect("access-control-allow-origin", "https://worldgpz.onrender.com");
+    await request(app)
+      .get("/api/health")
+      .set("Host", "worldgpz.onrender.com")
+      .set("Origin", "https://attacker.example")
+      .expect(403);
+  });
+
   it("returns dashboard data from curated and live sources", async () => {
     const response = await request(app).get("/api/v1/dashboard").expect(200);
     expect(response.body.data.metrics.activeSignals).toBeGreaterThan(1);
@@ -170,6 +185,7 @@ describe("extended provider API", () => {
     "/api/v1/outages",
     "/api/v1/energy",
     "/api/v1/macro",
+    "/api/v1/weather",
   ];
 
   it.each(endpoints)(
@@ -185,7 +201,7 @@ describe("extended provider API", () => {
   it("reports every provider without leaking secrets", async () => {
     const response = await request(app).get("/api/v1/providers").expect(200);
     const providers = response.body.data;
-    expect(providers.length).toBe(12);
+    expect(providers.length).toBe(13);
     for (const provider of providers) {
       expect(provider).toHaveProperty("id");
       expect(provider).toHaveProperty("name");

@@ -1,8 +1,11 @@
 # WORLDGPZ extended-provider forensic scan
 
 Date: 2026-08-11
-Scope: full-stack audit of the 12 recommended API-key integrations, server
+Scope: initial full-stack audit of the provider integrations, server
 configuration, API surface, frontend wiring, security headers, and tests.
+
+> Superseded for live production findings and the 13-provider implementation by
+> [`PRODUCTION_FORENSIC_SCAN_2026-08-11.md`](PRODUCTION_FORENSIC_SCAN_2026-08-11.md).
 
 ## Scan method
 

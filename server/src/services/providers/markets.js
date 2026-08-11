@@ -6,13 +6,16 @@ import { ProviderBase } from "./base.js";
  * Auth: `token` query parameter.
  */
 const WATCHLIST = [
-  { symbol: "^GSPC", name: "S&P 500", type: "Index" },
-  { symbol: "^IXIC", name: "Nasdaq Composite", type: "Index" },
-  { symbol: "^DJI", name: "Dow Jones", type: "Index" },
-  { symbol: "^FTSE", name: "FTSE 100", type: "Index" },
-  { symbol: "^GDAXI", name: "DAX", type: "Index" },
-  { symbol: "^N225", name: "Nikkei 225", type: "Index" },
-  { symbol: "USO", name: "USO (WTI ETF)", type: "ETF" },
+  // Finnhub's free quote plan does not return the caret-prefixed index symbols
+  // used by some finance APIs. Liquid US-listed ETFs provide reliable,
+  // explicitly labelled index proxies on the same endpoint.
+  { symbol: "SPY", name: "S&P 500 (SPY proxy)", type: "ETF" },
+  { symbol: "QQQ", name: "Nasdaq 100 (QQQ proxy)", type: "ETF" },
+  { symbol: "DIA", name: "Dow Jones (DIA proxy)", type: "ETF" },
+  { symbol: "EWU", name: "United Kingdom (EWU proxy)", type: "ETF" },
+  { symbol: "EWG", name: "Germany (EWG proxy)", type: "ETF" },
+  { symbol: "EWJ", name: "Japan (EWJ proxy)", type: "ETF" },
+  { symbol: "USO", name: "WTI crude (USO proxy)", type: "ETF" },
   { symbol: "BINANCE:BTCUSDT", name: "Bitcoin / USD", type: "Crypto" },
 ];
 
