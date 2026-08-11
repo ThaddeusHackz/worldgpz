@@ -37,6 +37,7 @@ import {
   MarketsPanel,
   ProviderChips,
   TrackingPanel,
+  WeatherPanel,
   WebcamsPanel,
 } from "../components/OpsExtras.jsx";
 import { api } from "../lib/api.js";
@@ -796,6 +797,7 @@ export default function Operations() {
         />
         <LiveChannelsPanel />
         <WebcamsPanel />
+        <WeatherPanel />
         <MarketsPanel />
         <EnergyMacroPanel />
         <TrackingPanel />

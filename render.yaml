@@ -68,6 +68,8 @@ services:
         sync: false
       - key: OPENSKY_BBOX
         value: -10,-30,70,60
+      - key: OPENSKY_TIMEOUT_MS
+        value: "20000"
       - key: CLOUDFLARE_API_TOKEN
         sync: false
       - key: EIA_API_KEY

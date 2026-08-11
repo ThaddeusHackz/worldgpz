@@ -139,13 +139,26 @@ export function createApp({
     }),
   );
   app.use(
-    cors({
-      origin(origin, callback) {
-        if (!origin || config.corsOrigins.includes(origin))
-          return callback(null, true);
-        return callback(new Error("Origin not permitted"));
-      },
-      credentials: false,
+    cors((req, callback) => {
+      const origin = req.get("origin");
+      const requestHost = req.get("host");
+      let sameOrigin = false;
+      if (origin && requestHost) {
+        try {
+          sameOrigin = new URL(origin).host === requestHost;
+        } catch {
+          sameOrigin = false;
+        }
+      }
+      if (
+        !origin ||
+        sameOrigin ||
+        origin === config.appUrl ||
+        config.corsOrigins.includes(origin)
+      ) {
+        return callback(null, { origin: true, credentials: false });
+      }
+      return callback(new Error("Origin not permitted"));
     }),
   );
   app.use(compression());
@@ -377,6 +390,10 @@ export function createApp({
   app.get(
     "/api/v1/macro",
     providerRoute(() => providers.macro()),
+  );
+  app.get(
+    "/api/v1/weather",
+    providerRoute(() => providers.weather()),
   );
 
   app.post(

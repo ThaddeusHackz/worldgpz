@@ -1,6 +1,10 @@
 export class IntelligenceService {
   constructor(config) {
     this.config = config;
+    this.lastSuccessAt = null;
+    this.lastCheckedAt = null;
+    this.lastError = null;
+    this.lastErrorCode = null;
   }
 
   #fallback(events, liveSnapshot) {
@@ -48,6 +52,7 @@ export class IntelligenceService {
         publishedAt,
       }));
     try {
+      this.lastCheckedAt = new Date().toISOString();
       const response = await fetch(
         `${this.config.ai.baseUrl}/chat/completions`,
         {
@@ -79,12 +84,30 @@ export class IntelligenceService {
       if (!parsed.headline || !Array.isArray(parsed.assessment))
         throw new Error("AI response did not match the required shape");
       this.lastSuccessAt = new Date().toISOString();
+      this.lastError = null;
+      this.lastErrorCode = null;
       return {
         ...parsed,
         generatedBy: `${this.config.ai.model} via configured provider`,
         disclaimer: parsed.disclaimer || fallback.disclaimer,
       };
-    } catch {
+    } catch (error) {
+      this.lastErrorCode =
+        error?.name === "TimeoutError" || error?.name === "AbortError"
+          ? "timeout"
+          : /returned 401|returned 403/.test(String(error?.message || ""))
+            ? "credential-rejected"
+            : /returned 429/.test(String(error?.message || ""))
+              ? "quota-exceeded"
+              : "provider-error";
+      this.lastError =
+        this.lastErrorCode === "credential-rejected"
+          ? "AI provider rejected the configured key or project access"
+          : this.lastErrorCode === "quota-exceeded"
+            ? "AI provider quota or billing limit was reached"
+            : this.lastErrorCode === "timeout"
+              ? "AI provider timed out"
+              : "AI provider was unavailable; rules engine used";
       return { ...fallback, providerFallback: true };
     }
   }

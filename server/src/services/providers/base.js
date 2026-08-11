@@ -1,12 +1,39 @@
+const STATUS_MESSAGES = {
+  400: "request was rejected",
+  401: "credentials were rejected",
+  403: "credentials or permissions were rejected",
+  404: "endpoint was not found",
+  408: "request timed out",
+  409: "request conflicted with provider state",
+  429: "quota or rate limit was reached",
+};
+
+function errorCodeFor(error) {
+  if (error?.code) return error.code;
+  if (
+    error?.name === "AbortError" ||
+    error?.name === "TimeoutError" ||
+    /timed?\s*out|aborted due to timeout/i.test(String(error?.message || ""))
+  ) {
+    return "timeout";
+  }
+  const status = Number(error?.status);
+  if (status === 401 || status === 403) return "credential-rejected";
+  if (status === 429) return "quota-exceeded";
+  if (status === 400) return "invalid-request";
+  if (status >= 500) return "upstream-unavailable";
+  return "provider-error";
+}
+
 /**
  * Shared foundation for all extended data-provider adapters.
  *
  * Every adapter:
- * - reads its credential from `config` only (never from the browser),
+ * - reads credentials from `config` only (never from the browser),
  * - reports `not-configured` without making network calls when no key is set,
- * - caches successful responses for `cacheSeconds` to protect provider quotas,
- * - caches failures for at most 120 seconds so recovery is fast,
- * - returns a stable public shape: `{ configured, status, checkedAt, ...data }`.
+ * - coalesces concurrent refreshes and caches successful responses,
+ * - holds failures briefly so provider recovery is detected quickly,
+ * - emits public-safe error codes without returning upstream bodies or secrets.
  */
 export class ProviderBase {
   constructor(
@@ -15,6 +42,7 @@ export class ProviderBase {
       name,
       group = "Data",
       cacheSeconds = 300,
+      timeoutMs,
       fetchFn = globalThis.fetch,
     } = {},
   ) {
@@ -22,9 +50,11 @@ export class ProviderBase {
     this.name = name;
     this.group = group;
     this.cacheSeconds = cacheSeconds;
+    this.timeoutMs = timeoutMs || config.fetchTimeoutMs || 8_000;
     this.fetchFn = fetchFn;
     this.cache = null;
     this.cachedAt = 0;
+    this.inFlight = null;
   }
 
   /** Override: true when the required credential is present. */
@@ -38,22 +68,34 @@ export class ProviderBase {
   }
 
   async #request(url, options = {}) {
+    const timeoutMs = options.timeoutMs || this.timeoutMs;
+    const { timeoutMs: _ignored, ...requestOptions } = options;
     const response = await this.fetchFn(url, {
-      ...options,
-      signal:
-        options.signal ||
-        AbortSignal.timeout(this.config.fetchTimeoutMs || 8_000),
+      ...requestOptions,
+      signal: requestOptions.signal || AbortSignal.timeout(timeoutMs),
       headers: {
-        "User-Agent": "WORLDGPZ/2.0 (public monitoring dashboard)",
+        "User-Agent": "WORLDGPZ/2.1 (source-attributed monitoring dashboard)",
         Accept: "application/json",
-        ...options.headers,
+        ...requestOptions.headers,
       },
     });
     if (!response.ok) {
-      const error = new Error(
-        `${this.name} provider returned ${response.status}`,
-      );
+      // Read only a bounded diagnostic fragment. It is never returned publicly,
+      // but is useful in server logs/tests and lets adapters classify failures.
+      const diagnostic = await response
+        .clone()
+        .text()
+        .then((text) => text.replace(/\s+/g, " ").slice(0, 240))
+        .catch(() => "");
+      const phrase =
+        STATUS_MESSAGES[response.status] ||
+        (response.status >= 500
+          ? "service is temporarily unavailable"
+          : `returned HTTP ${response.status}`);
+      const error = new Error(`${this.name} ${phrase}`);
       error.status = response.status;
+      error.code = errorCodeFor(error);
+      error.diagnostic = diagnostic;
       throw error;
     }
     return response;
@@ -61,7 +103,13 @@ export class ProviderBase {
 
   async fetchJson(url, options = {}) {
     const response = await this.#request(url, options);
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      const error = new Error(`${this.name} returned invalid JSON`);
+      error.code = "invalid-response";
+      throw error;
+    }
   }
 
   async fetchText(url, options = {}) {
@@ -69,22 +117,40 @@ export class ProviderBase {
     return response.text();
   }
 
-  async fetchForm(url, parameters) {
+  async fetchForm(url, parameters, options = {}) {
     const response = await this.#request(url, {
+      ...options,
       method: "POST",
       headers: {
         "Content-Type": "application/x-www-form-urlencoded",
+        ...options.headers,
       },
       body: new URLSearchParams(parameters),
     });
-    return response.json();
+    try {
+      return await response.json();
+    } catch {
+      const error = new Error(
+        `${this.name} returned invalid authentication data`,
+      );
+      error.code = "invalid-response";
+      throw error;
+    }
   }
 
   #safeMessage(error) {
-    const message = error?.status
-      ? `${this.name} provider returned ${error.status}`
-      : String(error?.message || "Unknown provider error");
-    return message.slice(0, 140);
+    const code = errorCodeFor(error);
+    const messages = {
+      timeout: `${this.name} timed out; a smaller coverage window will be retried`,
+      "credential-rejected": `${this.name} rejected the configured credentials or permissions`,
+      "quota-exceeded": `${this.name} quota or rate limit was reached`,
+      "invalid-request": `${this.name} rejected the request contract`,
+      "upstream-unavailable": `${this.name} is temporarily unavailable upstream`,
+      "invalid-response": `${this.name} returned an unexpected response`,
+    };
+    return (
+      messages[code] || String(error?.message || "Provider unavailable")
+    ).slice(0, 160);
   }
 
   notConfigured() {
@@ -97,18 +163,8 @@ export class ProviderBase {
     };
   }
 
-  /**
-   * Returns the cached-or-fresh provider payload. Never throws: failures are
-   * returned as a `degraded` status so the API surface stays stable.
-   */
-  async snapshot({ fresh = false } = {}) {
-    if (!this.configured) return this.notConfigured();
-
-    const ttl = this.cacheSeconds * 1000;
-    const now = Date.now();
-    if (!fresh && this.cache && now - this.cachedAt < ttl) return this.cache;
-
-    const startedAt = now;
+  async #refresh() {
+    const startedAt = Date.now();
     try {
       const data = await this.collect();
       this.cache = {
@@ -122,6 +178,7 @@ export class ProviderBase {
       };
       this.cachedAt = Date.now();
     } catch (error) {
+      const ttl = this.cacheSeconds * 1000;
       const errorHoldMs = Math.min(ttl, 120_000);
       this.cache = {
         configured: true,
@@ -130,15 +187,34 @@ export class ProviderBase {
         group: this.group,
         checkedAt: new Date().toISOString(),
         latencyMs: Date.now() - startedAt,
+        errorCode: errorCodeFor(error),
         error: this.#safeMessage(error),
       };
-      // Hold the error state only briefly so the provider can recover.
-      this.cachedAt = Date.now() - (ttl - errorHoldMs);
+      // Hold the error briefly, not for the full success TTL.
+      this.cachedAt = Date.now() - Math.max(0, ttl - errorHoldMs);
     }
     return this.cache;
   }
 
-  /** Compact, public-safe status view for the providers registry. */
+  /**
+   * Returns the cached-or-fresh provider payload. It never throws: failures
+   * become a stable `degraded` response so one provider cannot break the app.
+   */
+  async snapshot({ fresh = false } = {}) {
+    if (!this.configured) return this.notConfigured();
+
+    const ttl = this.cacheSeconds * 1000;
+    const now = Date.now();
+    if (!fresh && this.cache && now - this.cachedAt < ttl) return this.cache;
+    if (this.inFlight) return this.inFlight;
+
+    this.inFlight = this.#refresh().finally(() => {
+      this.inFlight = null;
+    });
+    return this.inFlight;
+  }
+
+  /** Compact public-safe health view; large provider payloads stay off /providers. */
   statusView() {
     if (!this.configured) return this.notConfigured();
     if (!this.cache)
@@ -149,6 +225,35 @@ export class ProviderBase {
         group: this.group,
         checkedAt: null,
       };
-    return this.cache;
+
+    const summaryKeys = [
+      "latencyMs",
+      "error",
+      "errorCode",
+      "total",
+      "detections",
+      "outages",
+      "anomalies",
+      "vesselCount",
+      "messageCount",
+      "liveCount",
+      "window",
+      "coverage",
+      "lastMessageAt",
+      "providerNotice",
+    ];
+    const view = {
+      configured: true,
+      status: this.cache.status,
+      name: this.name,
+      group: this.group,
+      checkedAt: this.cache.checkedAt || null,
+    };
+    for (const key of summaryKeys) {
+      if (this.cache[key] !== undefined) view[key] = this.cache[key];
+    }
+    return view;
   }
 }
+
+export { errorCodeFor };

@@ -69,17 +69,30 @@ export class FirmsService extends ProviderBase {
       `${encodeURIComponent(this.config.firms.area)}/1`;
     const text = await this.fetchText(url, {
       headers: { Accept: "text/csv" },
+      timeoutMs: Math.max(this.timeoutMs, 20_000),
     });
     const rows = parseCsv(text);
     if (!rows.length) return [];
     const [header, ...body] = rows;
-    const columns = header.map((name) => name.trim());
+    const columns = header.map((name) => name.trim().toLowerCase());
+    // FIRMS sometimes returns a 200 text response for a rejected MAP key or
+    // exhausted transaction budget. Never misreport that as "no fires".
+    if (!columns.includes("latitude") || !columns.includes("longitude")) {
+      const diagnostic = text.toLowerCase();
+      const error = new Error("FIRMS returned a non-CSV diagnostic response");
+      error.code = /map.?key|unauthor|invalid key/.test(diagnostic)
+        ? "credential-rejected"
+        : /transaction|quota|rate.?limit/.test(diagnostic)
+          ? "quota-exceeded"
+          : "invalid-response";
+      throw error;
+    }
     const pick = (row, name) => {
       const position = columns.indexOf(name);
       return position >= 0 ? row[position] : undefined;
     };
     return body
-      .filter((row) => row.length === columns.length)
+      .filter((row) => row.length >= columns.length)
       .map((row, index) => {
         const latitude = Number(pick(row, "latitude"));
         const longitude = Number(pick(row, "longitude"));
@@ -121,16 +134,39 @@ export class FirmsService extends ProviderBase {
   }
 
   async collect() {
+    const configuredSources = [
+      ...new Set(this.config.firms.sources || ["VIIRS_SNPP_NRT"]),
+    ];
     const settled = await Promise.allSettled(
-      (this.config.firms.sources || ["VIIRS_SNPP_NRT"]).map((source) =>
-        this.#source(source),
-      ),
+      configuredSources.map((source) => this.#source(source)),
     );
     const detections = [];
+    const errors = [];
     for (const result of settled) {
       if (result.status === "fulfilled") detections.push(...result.value);
+      else errors.push(result.reason);
     }
-    if (!detections.length) throw new Error("FIRMS returned no detections");
+
+    // A valid global request should almost always contain detections. If all
+    // selected satellites legitimately return an empty CSV, try NOAA-20 once;
+    // this also covers short source-specific acquisition gaps.
+    const fallbackSource = "VIIRS_NOAA20_NRT";
+    if (
+      !detections.length &&
+      !errors.length &&
+      !configuredSources.includes(fallbackSource)
+    ) {
+      detections.push(...(await this.#source(fallbackSource)));
+      configuredSources.push(fallbackSource);
+    }
+    if (!detections.length && errors.length) throw errors[0];
+    if (!detections.length) {
+      const error = new Error(
+        "FIRMS returned no detections in the selected window",
+      );
+      error.code = "no-data";
+      throw error;
+    }
     const ranked = detections
       .sort((a, b) => (b.frp || 0) - (a.frp || 0))
       .slice(0, MAX_DETECTIONS);
@@ -138,7 +174,7 @@ export class FirmsService extends ProviderBase {
       events: ranked,
       detections: ranked.length,
       window: "last 24 hours",
-      sources: this.config.firms.sources,
+      sources: configuredSources,
     };
   }
 }

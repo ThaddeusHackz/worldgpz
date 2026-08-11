@@ -8,6 +8,7 @@ import { FredService } from "../src/services/providers/macro.js";
 import { CloudflareService } from "../src/services/providers/outages.js";
 import { OpenSkyService } from "../src/services/providers/flights.js";
 import { AisStreamService } from "../src/services/providers/ships.js";
+import { OpenWeatherService } from "../src/services/providers/weather.js";
 import { ProviderRegistry } from "../src/services/providers/registry.js";
 
 const baseConfig = {
@@ -22,6 +23,7 @@ const baseConfig = {
   cloudflareApiToken: "",
   eiaApiKey: "",
   fredApiKey: "",
+  weatherApiKey: "",
   newsApiKey: "",
   youtubeApiKey: "",
   ai: { apiKey: "", baseUrl: "", model: "test-model" },
@@ -89,7 +91,7 @@ describe("WindyService (webcams)", () => {
               total: 1,
               webcams: [
                 {
-                  id: 1401795663,
+                  webcamId: 1401795663,
                   status: "active",
                   title: "Kinshasa river cam",
                   location: {
@@ -105,9 +107,11 @@ describe("WindyService (webcams)", () => {
                     },
                   },
                   player: {
-                    embed: "https://webcams.windy.com/webcams/embed/1401795663",
+                    live: "https://webcams.windy.com/webcams/embed/1401795663",
                   },
-                  properties: { is_streaming: true },
+                  urls: {
+                    detail: "https://www.windy.com/webcams/1401795663",
+                  },
                 },
               ],
             }),
@@ -132,7 +136,12 @@ describe("WindyService (webcams)", () => {
       latitude: -4.3,
       longitude: 15.3,
       thumbnail: "https://images.windy.com/thumb.jpg",
+      playerUrl: "https://webcams.windy.com/webcams/embed/1401795663",
+      isStreaming: true,
     });
+    expect(requests[0].url.searchParams.get("include")).toBe(
+      "images,location,player,urls",
+    );
     expect(first.attribution).toContain("Windy");
     expect(JSON.stringify(first)).not.toContain("windy-private-key");
   });
@@ -173,7 +182,7 @@ describe("FinnhubService (markets)", () => {
       ),
     ).toBe(true);
     expect(JSON.stringify(result)).not.toContain("finnhub-private");
-    const spy = result.quotes.find((quote) => quote.symbol === "^GSPC");
+    const spy = result.quotes.find((quote) => quote.symbol === "SPY");
     expect(spy).toMatchObject({
       current: 5945.2,
       change: 12.4,
@@ -218,6 +227,20 @@ describe("FirmsService (NASA FIRMS)", () => {
     expect(strongest.publishedAt).toBe("2026-08-10T14:20:00Z");
     expect(result.events.find((e) => e.frp === 45.3).severity).toBe("medium");
     expect(JSON.stringify(result)).not.toContain("firms-map-key");
+  });
+
+  it("classifies a 200-status MAP key diagnostic instead of claiming no data", async () => {
+    const service = new FirmsService(
+      configFor({
+        firmsApiKey: "rejected-map-key",
+        firms: { sources: ["VIIRS_SNPP_NRT"], area: "world", cacheSeconds: 60 },
+      }),
+      { fetchFn: async () => textResponse("Invalid MAP_KEY supplied") },
+    );
+    const result = await service.snapshot();
+    expect(result.status).toBe("degraded");
+    expect(result.errorCode).toBe("credential-rejected");
+    expect(JSON.stringify(result)).not.toContain("rejected-map-key");
   });
 
   it("caps ranked detections to protect response size", async () => {
@@ -438,15 +461,11 @@ describe("CloudflareService (outages)", () => {
             jsonResponse({
               success: true,
               result: {
-                locations: [
+                annotations: [
                   {
-                    locationName: "Kinshasa",
-                    locationCode: "CD",
-                    outages: {
-                      outageCount: 3,
-                      outageCountTotal: 5,
-                      asns: [{ asn: 1 }, { asn: 2 }],
-                    },
+                    clientCountryName: "Kinshasa",
+                    clientCountryAlpha2: "CD",
+                    value: "3",
                   },
                 ],
               },
@@ -458,11 +477,11 @@ describe("CloudflareService (outages)", () => {
             jsonResponse({
               success: true,
               result: {
-                locations: [
+                trafficAnomalies: [
                   {
-                    locationName: "Tehran",
-                    locationCode: "IR",
-                    anomalies: { anomalyCount: 2, asns: [] },
+                    clientCountryName: "Tehran",
+                    clientCountryAlpha2: "IR",
+                    value: "2",
                   },
                 ],
               },
@@ -485,7 +504,7 @@ describe("CloudflareService (outages)", () => {
       location: "Kinshasa",
       kind: "outage",
       count: 3,
-      asnCount: 2,
+      asnCount: 0,
     });
     expect(result.items[1]).toMatchObject({
       location: "Tehran",
@@ -771,15 +790,69 @@ describe("AisStreamService (ships relay)", () => {
   });
 });
 
+describe("OpenWeatherService (weather)", () => {
+  it("maps current conditions and reuses them as attributed map events", async () => {
+    const requests = [];
+    const fetchFn = fakeFetch(
+      [
+        {
+          test: (url) => url.hostname === "api.openweathermap.org",
+          handler: ({ url }) =>
+            jsonResponse({
+              coord: {
+                lat: Number(url.searchParams.get("lat")),
+                lon: Number(url.searchParams.get("lon")),
+              },
+              weather: [{ id: 500, description: "light rain", icon: "10d" }],
+              main: {
+                temp: 24.5,
+                feels_like: 25,
+                humidity: 80,
+                pressure: 1012,
+              },
+              wind: { speed: 5, gust: 7 },
+              rain: { "1h": 1.2 },
+              dt: 1786467600,
+              sys: { country: "GH" },
+              name: "Watch point",
+            }),
+        },
+      ],
+      requests,
+    );
+    const service = new OpenWeatherService(
+      configFor({ weatherApiKey: "weather-private" }),
+      { fetchFn },
+    );
+    const result = await service.snapshot();
+    const events = await service.events();
+    expect(result.status).toBe("operational");
+    expect(result.observations).toHaveLength(8);
+    expect(events).toHaveLength(8);
+    expect(events[0]).toMatchObject({
+      category: "climate",
+      sourceName: "OpenWeather",
+      temperature: 24.5,
+    });
+    expect(
+      requests.every(
+        (request) =>
+          request.url.searchParams.get("appid") === "weather-private",
+      ),
+    ).toBe(true);
+    expect(JSON.stringify(result)).not.toContain("weather-private");
+  });
+});
+
 describe("ProviderRegistry", () => {
-  it("reports all 12 providers with no secrets", () => {
+  it("reports all 13 providers with no secrets", () => {
     const registry = new ProviderRegistry(configFor(), {
       media: { apiKey: "", cache: null, list: async () => ({}) },
       liveSources: { cache: null, snapshot: async () => ({}) },
       intelligence: { lastSuccessAt: null },
     });
     const status = registry.status();
-    expect(status).toHaveLength(12);
+    expect(status).toHaveLength(13);
     const ids = status.map((item) => item.id);
     for (const id of [
       "windy-webcams",
@@ -791,6 +864,7 @@ describe("ProviderRegistry", () => {
       "cloudflare-radar",
       "opensky",
       "aisstream",
+      "openweather",
       "youtube",
       "news",
       "ai",

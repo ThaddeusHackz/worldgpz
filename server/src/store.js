@@ -138,6 +138,34 @@ export class Store {
       } else {
         this.data.users.push(user);
       }
+    } else {
+      // In production the Render environment is the bootstrap administrator's
+      // source of truth. Reconcile a rotated password/name at startup so an
+      // exposed old password does not remain valid in an existing database.
+      const passwordMatches = await bcrypt.compare(
+        this.admin.password,
+        existingUser.password_hash,
+      );
+      const nameMatches = existingUser.name === this.admin.name;
+      if (!passwordMatches || !nameMatches) {
+        const passwordHash = passwordMatches
+          ? existingUser.password_hash
+          : await bcrypt.hash(this.admin.password, 12);
+        if (this.pool) {
+          await this.pool.query(
+            "UPDATE users SET name = $1, password_hash = $2 WHERE id = $3",
+            [this.admin.name, passwordHash, existingUser.id],
+          );
+        } else {
+          const user = this.data.users.find(
+            (item) => item.id === existingUser.id,
+          );
+          if (user) {
+            user.name = this.admin.name;
+            user.passwordHash = passwordHash;
+          }
+        }
+      }
     }
 
     if ((await this.listEvents({ limit: 1 })).items.length === 0) {

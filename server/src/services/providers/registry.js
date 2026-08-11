@@ -7,6 +7,7 @@ import { FredService } from "./macro.js";
 import { CloudflareService } from "./outages.js";
 import { OpenSkyService } from "./flights.js";
 import { AisStreamService } from "./ships.js";
+import { OpenWeatherService } from "./weather.js";
 
 /**
  * ProviderRegistry — one object that owns every extended provider adapter,
@@ -28,6 +29,7 @@ export class ProviderRegistry {
     this.outagesService = new CloudflareService(config, options);
     this.flightsService = new OpenSkyService(config, options);
     this.shipsService = new AisStreamService(config, options);
+    this.weatherService = new OpenWeatherService(config, options);
     this.lastKick = 0;
   }
 
@@ -42,6 +44,7 @@ export class ProviderRegistry {
       this.outagesService,
       this.flightsService,
       this.shipsService,
+      this.weatherService,
     ];
   }
 
@@ -84,6 +87,7 @@ export class ProviderRegistry {
       group: "Media",
       configured: true,
       status: cache.status,
+      availability: cache.availability,
       checkedAt: cache.checkedAt,
       liveCount: cache.liveCount ?? null,
     };
@@ -126,6 +130,7 @@ export class ProviderRegistry {
   #aiView() {
     const configured = Boolean(this.config.ai?.apiKey);
     const operational = Boolean(this.intelligence?.lastSuccessAt);
+    const checked = Boolean(this.intelligence?.lastCheckedAt);
     return {
       id: "ai",
       name: "AI Briefing",
@@ -135,8 +140,15 @@ export class ProviderRegistry {
         ? "not-configured"
         : operational
           ? "operational"
-          : "pending",
-      checkedAt: this.intelligence?.lastSuccessAt || null,
+          : checked
+            ? "degraded"
+            : "pending",
+      checkedAt:
+        this.intelligence?.lastSuccessAt ||
+        this.intelligence?.lastCheckedAt ||
+        null,
+      error: this.intelligence?.lastError || undefined,
+      errorCode: this.intelligence?.lastErrorCode || undefined,
       model: configured ? this.config.ai.model : null,
     };
   }
@@ -171,17 +183,19 @@ export class ProviderRegistry {
     return views;
   }
 
-  /** Map-relevant events (NASA FIRMS fires + ACLED conflict) for the dashboard. */
+  /** Map-relevant provider records for the operations dashboard. */
   async events() {
-    const [fires, conflicts] = await Promise.allSettled([
+    const [fires, conflicts, weather] = await Promise.allSettled([
       this.firmsService.snapshot(),
       this.acledService.snapshot(),
+      this.weatherService.events(),
     ]);
     const events = [];
     if (fires.status === "fulfilled")
       events.push(...(fires.value.events || []));
     if (conflicts.status === "fulfilled")
       events.push(...(conflicts.value.events || []));
+    if (weather.status === "fulfilled") events.push(...weather.value);
     return events;
   }
 
@@ -219,6 +233,10 @@ export class ProviderRegistry {
 
   ships() {
     return this.shipsService.snapshot();
+  }
+
+  weather() {
+    return this.weatherService.snapshot();
   }
 
   /** Graceful shutdown for long-running relays. */

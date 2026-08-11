@@ -15,6 +15,7 @@
     "test:server": "npm run test --workspace server",
     "test:client": "npm run test --workspace client",
     "verify": "npm run test && npm run build && npm audit --omit=dev --audit-level=high",
+    "scan:live": "node scripts/forensic-scan.mjs",
     "format:check": "prettier --check ."
   },
   "engines": {
