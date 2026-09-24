@@ -22,9 +22,9 @@
   --cyan: #00e5ff;
   --cyan-soft: #7ff4ff;
   --cyan-dim: #0aa9c2;
-  --ice: #dcf6ff;
-  --dim: #93b6cb;
-  --faint: #5b7688;
+  --ice: #e6faff;
+  --dim: #a7c4d6;
+  --faint: #7b95a6;
   --red: #ff2e4d;
   --coral: #ff5470;
   --amber: #ffb020;
@@ -1728,7 +1728,7 @@ label > span {
 
 .signal-heading strong {
   color: #fff;
-  font-size: 15px;
+  font-size: 15.5px;
   line-height: 1.35;
   font-weight: 600;
 }
@@ -1742,7 +1742,7 @@ label > span {
 
 .signal-summary {
   color: var(--dim);
-  font-size: 13.5px;
+  font-size: 14px;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -2344,7 +2344,7 @@ label > span {
   display: inline-flex;
   align-items: center;
   gap: 9px;
-  font-size: 12.5px;
+  font-size: 13px;
   color: var(--dim);
 }
 
@@ -2426,7 +2426,7 @@ label > span {
   gap: 6px;
   min-height: 178px;
   font-family: var(--font-mono);
-  font-size: 12.5px;
+  font-size: 13px;
   line-height: 1.7;
 }
 
@@ -3630,7 +3630,7 @@ label > span {
 
 .ops-panel > header strong {
   font-family: var(--font-display);
-  font-size: 11.5px;
+  font-size: 12px;
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -3725,7 +3725,7 @@ label > span {
 .ops-feed-row strong {
   display: block;
   color: var(--ice);
-  font-size: 13.5px;
+  font-size: 14px;
   font-weight: 600;
   line-height: 1.4;
 }
@@ -5698,4 +5698,201 @@ body {
 /* Ops 3D toggle stays visible above the globe */
 .ops-map .orbital-globe {
   z-index: 401;
+}
+
+/* ================================================ REALTIME + ORBITAL ADD-ONS */
+.toast-stack {
+  position: fixed;
+  top: 74px;
+  right: 18px;
+  z-index: 1400;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  width: min(380px, calc(100vw - 36px));
+}
+
+.toast-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 13px 15px;
+  border: 1px solid var(--line-strong);
+  border-left-width: 3px;
+  background: rgba(2, 8, 15, 0.96);
+  box-shadow: 0 0 34px rgba(0, 229, 255, 0.14);
+  animation: toast-in 0.32s cubic-bezier(0.2, 0.9, 0.3, 1) both;
+  backdrop-filter: blur(8px);
+}
+
+@keyframes toast-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+  to {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+.toast-item svg {
+  flex: none;
+  margin-top: 2px;
+  color: var(--cyan);
+}
+
+.toast-item.sev-critical {
+  border-left-color: var(--red);
+}
+.toast-item.sev-critical svg {
+  color: var(--red);
+}
+.toast-item.sev-high {
+  border-left-color: var(--amber);
+}
+.toast-item.sev-high svg {
+  color: var(--amber);
+}
+.toast-item.sev-medium svg {
+  color: var(--blue);
+}
+.toast-item.sev-low svg {
+  color: var(--lime);
+}
+
+.toast-item > div {
+  min-width: 0;
+  flex: 1;
+}
+
+.toast-item small {
+  display: block;
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+  color: var(--faint);
+  margin-bottom: 3px;
+}
+
+.toast-item strong {
+  display: block;
+  color: var(--ice);
+  font-size: 13.5px;
+  line-height: 1.4;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.toast-item > button {
+  color: var(--faint);
+  flex: none;
+}
+
+.toast-item > button:hover {
+  color: var(--cyan-soft);
+}
+
+/* Risk component breakdown */
+.risk-breakdown {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+  margin: 4px 0 14px;
+}
+
+.risk-breakdown > div {
+  display: grid;
+  grid-template-columns: 1fr 26px;
+  gap: 8px;
+  align-items: center;
+}
+
+.risk-breakdown span {
+  grid-column: 1 / -1;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--dim);
+}
+
+.risk-breakdown i {
+  grid-row: 2;
+  height: 5px;
+  background: rgba(0, 229, 255, 0.08);
+  border: 1px solid var(--line-soft);
+  overflow: hidden;
+}
+
+.risk-breakdown b {
+  display: block;
+  height: 100%;
+  background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+  box-shadow: 0 0 8px rgba(0, 229, 255, 0.55);
+  transition: width 0.6s ease;
+}
+
+.risk-breakdown em {
+  grid-row: 2;
+  font-style: normal;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  color: var(--cyan-soft);
+  text-align: right;
+}
+
+/* Space weather strip */
+.space-strip {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-family: var(--font-mono);
+  font-size: 11px;
+  letter-spacing: 0.14em;
+  color: var(--amber);
+  border: 1px solid rgba(255, 176, 32, 0.35);
+  background: rgba(255, 176, 32, 0.05);
+  padding: 8px 11px;
+  margin-bottom: 13px;
+}
+
+.space-strip i {
+  width: 8px;
+  height: 8px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--amber);
+  box-shadow: 0 0 9px var(--amber);
+  animation: pulse-dot 2.2s ease-in-out infinite;
+}
+
+.space-strip em {
+  font-style: normal;
+  margin-left: auto;
+  color: var(--dim);
+  letter-spacing: 0.1em;
+}
+
+/* Pulse chip stream tag */
+.pulse-chip u {
+  text-decoration: none;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  color: var(--lime);
+  border-left: 1px solid rgba(70, 240, 160, 0.35);
+  padding-left: 9px;
+}
+
+/* Constellation panel */
+.ops-constellation {
+  grid-column: span 4;
+}
+
+.ops-constellation .ops-tracking-row small {
+  letter-spacing: 0.08em;
 }

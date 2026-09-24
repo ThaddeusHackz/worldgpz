@@ -48,10 +48,13 @@ import {
 import { Brand } from "../components/Brand.jsx";
 import WorldMap from "../components/WorldMap.jsx";
 import OrbitalGlobe from "../components/OrbitalGlobe.jsx";
+import { useLiveStream } from "../lib/useLiveStream.js";
+import { useTrack } from "../lib/useTrack.js";
 
 const categoryOptions = [
   "all",
   "conflict",
+  "civil",
   "seismic",
   "climate",
   "humanitarian",
@@ -535,6 +538,41 @@ export default function Dashboard() {
   const [scanning, setScanning] = useState(false);
   const [viewMode, setViewMode] = useState("grid");
   const [pulse, setPulse] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const { fixes: satellites } = useTrack();
+
+  const pushToasts = (signals) => {
+    const items = signals.slice(0, 3).map((signal) => ({
+      key: `${signal.id}-${Date.now()}`,
+      title: signal.title,
+      source: signal.sourceName,
+      severity: signal.severity || "medium",
+    }));
+    setToasts((current) => [...items, ...current].slice(0, 3));
+    setTimeout(() => {
+      setToasts((current) =>
+        current.filter(
+          (toast) => !items.some((item) => item.key === toast.key),
+        ),
+      );
+    }, 9_000);
+  };
+
+  const refreshTimer = useRef(null);
+  useLiveStream({
+    onSignal: (signals) => {
+      if (Array.isArray(signals) && signals.length) {
+        pushToasts(signals);
+        pushSystemLine(
+          `LIVE INTERCEPT ▸ ${signals[0].title.slice(0, 70).toUpperCase()}`,
+          signals[0].severity === "critical" ? "crit" : "info",
+        );
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = setTimeout(() => load(true), 4_000);
+      }
+    },
+    onPulse: (view) => setPulse(view),
+  });
   const [systemLines, setSystemLines] = useState([
     {
       time: new Date().toISOString().slice(11, 19),
@@ -715,6 +753,7 @@ export default function Dashboard() {
                 <em>
                   {pulse?.beatCount ? `HB ${pulse.beatCount}` : "LINKING"}
                 </em>
+                <u>{pulse?.beatCount ? "STREAM LIVE" : "…"}</u>
               </div>
               <div className="last-sync">
                 <span>Last grid sync</span>
@@ -836,6 +875,7 @@ export default function Dashboard() {
                       focusedEvent={focusedEvent}
                       onFocus={setFocusedEvent}
                       scanning={scanning}
+                      satellites={satellites}
                     />
                   )
                 ) : (
@@ -899,6 +939,29 @@ export default function Dashboard() {
                     ? "Elevated watch posture"
                     : "Measured watch posture"}
                 </h2>
+                <div className="risk-breakdown">
+                  {(dashboard?.riskBreakdown || []).map((axis) => (
+                    <div key={axis.id} title={`${axis.count} signals`}>
+                      <span>{axis.label}</span>
+                      <em>{axis.score}</em>
+                      <i>
+                        <b style={{ width: `${axis.score}%` }} />
+                      </i>
+                    </div>
+                  ))}
+                </div>
+                {dashboard?.space && (
+                  <div className="space-strip" title="NOAA SWPC space weather">
+                    <i />
+                    KP {dashboard.space.kp?.kp ?? "—"}
+                    <em>
+                      SOLAR WIND{" "}
+                      {dashboard.space.wind?.speed
+                        ? `${dashboard.space.wind.speed} KM/S`
+                        : "—"}
+                    </em>
+                  </div>
+                )}
                 <p>
                   Computed from live signal severity and uplink availability—not
                   a predictive risk rating.
@@ -1097,6 +1160,29 @@ export default function Dashboard() {
           </footer>
         </main>
       </div>
+      {toasts.length > 0 && (
+        <div className="toast-stack" aria-live="polite">
+          {toasts.map((toast) => (
+            <div key={toast.key} className={`toast-item sev-${toast.severity}`}>
+              <TriangleAlert size={15} />
+              <div>
+                <small>NEW SIGNAL INTERCEPTED · {toast.source}</small>
+                <strong>{toast.title}</strong>
+              </div>
+              <button
+                onClick={() =>
+                  setToasts((current) =>
+                    current.filter((item) => item.key !== toast.key),
+                  )
+                }
+                aria-label="Dismiss"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
       <Ticker events={dashboard?.events || []} news={dashboard?.news || []} />
     </div>
   );

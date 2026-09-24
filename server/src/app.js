@@ -10,6 +10,7 @@ import bcrypt from "bcryptjs";
 import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import { layerCatalog } from "./data/seed.js";
+import { TrackService } from "./services/track.js";
 import {
   eventSchema,
   loginSchema,
@@ -28,15 +29,93 @@ const publicUser = (user) => ({
   createdAt: user.created_at ?? user.createdAt,
 });
 
-const trend = (total, critical) =>
-  Array.from({ length: 12 }, (_, index) => ({
-    label: `${String(index * 2).padStart(2, "0")}:00`,
-    signals: Math.max(1, Math.round(total * (0.58 + ((index * 7) % 10) / 25))),
-    priority: Math.max(
-      0,
-      Math.round(critical * (0.45 + ((index * 3) % 8) / 18)),
-    ),
+/**
+ * Real 24-hour signal histogram: twelve 2-hour buckets computed from the
+ * actual publishedAt timestamps of the merged event stream.
+ */
+const trend = (events) => {
+  const now = Date.now();
+  const buckets = Array.from({ length: 12 }, (_, index) => {
+    const bucketEnd = now - (11 - index) * 2 * 60 * 60 * 1000;
+    const bucketStart = bucketEnd - 2 * 60 * 60 * 1000;
+    return {
+      label: `${String(new Date(bucketEnd).getUTCHours()).padStart(2, "0")}:00`,
+      signals: 0,
+      priority: 0,
+      bucketStart,
+      bucketEnd,
+    };
+  });
+  for (const event of events) {
+    const time = new Date(event.publishedAt).getTime();
+    if (!Number.isFinite(time) || time < buckets[0].bucketStart) continue;
+    const index = Math.min(
+      11,
+      Math.max(
+        0,
+        Math.floor((time - buckets[0].bucketStart) / (2 * 60 * 60 * 1000)),
+      ),
+    );
+    buckets[index].signals += 1;
+    if (["critical", "high"].includes(event.severity))
+      buckets[index].priority += 1;
+  }
+  return buckets.map(({ label, signals, priority }) => ({
+    label,
+    signals,
+    priority,
   }));
+};
+
+/**
+ * Real composite-risk component breakdown. Each axis scores the merged
+ * signal stream for one domain using severity weighting — no prediction,
+ * pure measurement of what the grid currently holds.
+ */
+const riskBreakdown = (events) => {
+  const domains = [
+    {
+      id: "security",
+      label: "Security & conflict",
+      categories: ["conflict", "diplomacy"],
+    },
+    {
+      id: "natural",
+      label: "Natural & seismic",
+      categories: ["seismic", "climate", "natural"],
+    },
+    {
+      id: "human",
+      label: "Humanitarian & civil",
+      categories: ["humanitarian", "civil", "health"],
+    },
+    {
+      id: "systems",
+      label: "Systems & economy",
+      categories: ["infrastructure", "cyber", "economy"],
+    },
+  ];
+  return domains.map((domain) => {
+    const subset = events.filter((event) =>
+      domain.categories.includes(event.category),
+    );
+    const weight = subset.reduce(
+      (sum, event) => sum + (severityWeight[event.severity] || 1),
+      0,
+    );
+    return {
+      id: domain.id,
+      label: domain.label,
+      count: subset.length,
+      score: Math.min(
+        99,
+        Math.round(
+          (weight / Math.max(subset.length, 1)) * 19 + subset.length * 2,
+        ),
+      ),
+    };
+  });
+};
 
 const buildOperationalPicture = (events) => {
   const layers = layerCatalog.map((layer) => ({
@@ -97,6 +176,7 @@ export function createApp({
 }) {
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
+  const trackService = new TrackService(config);
 
   if (config.trustProxy) app.set("trust proxy", config.trustProxy);
   app.disable("x-powered-by");
@@ -209,12 +289,71 @@ export function createApp({
       status: "ok",
       service: "worldgpz",
       codename: "gods-eye",
-      version: "3.1.0",
+      version: "3.2.0",
       autonomous: Boolean(pulse?.view().alive),
       time: new Date().toISOString(),
       uptimeSeconds: Math.round(process.uptime()),
       database: config.mongodbUri ? "mongodb-atlas" : "local-json",
     });
+  });
+
+  // Real orbital catalogue from CelesTrak; the client propagates SGP4.
+  app.get("/api/v1/track", async (_req, res, next) => {
+    try {
+      const catalogue = await trackService.list();
+      res
+        .set(
+          "cache-control",
+          "public, max-age=600, stale-while-revalidate=3600",
+        )
+        .json({
+          success: true,
+          data: catalogue,
+          generatedAt: new Date().toISOString(),
+        });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  // Realtime grid stream: heartbeats + freshly intercepted signals (SSE).
+  app.get("/api/v1/stream", (req, res) => {
+    if (!pulse) {
+      return res
+        .status(501)
+        .json({ success: false, error: "Realtime stream unavailable" });
+    }
+    res.set({
+      "cache-control": "no-store",
+      "content-type": "text/event-stream",
+      connection: "keep-alive",
+      "x-accel-buffering": "no",
+    });
+    res.flushHeaders?.();
+    res.write(
+      `event: hello\ndata: ${JSON.stringify({ since: Date.now(), autonomous: true })}\n\n`,
+    );
+    const unsubscribe = pulse.subscribe((event, payload) => {
+      try {
+        res.write(`event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`);
+        res.flush?.();
+      } catch {
+        cleanup();
+      }
+    });
+    const keepAlive = setInterval(() => {
+      try {
+        res.write(": keep-alive\n\n");
+        res.flush?.();
+      } catch {
+        cleanup();
+      }
+    }, 20_000);
+    function cleanup() {
+      clearInterval(keepAlive);
+      unsubscribe();
+    }
+    req.on("close", cleanup);
   });
 
   app.get("/api/v1/pulse", (_req, res) => {
@@ -243,11 +382,36 @@ export function createApp({
         liveSources.snapshot(),
         providers?.events() ?? Promise.resolve([]),
       ]);
+      // Real geomagnetic-storm signal derived from NOAA SWPC telemetry.
+      const spaceEvents = snapshot.space?.kp?.storm
+        ? [
+            {
+              id: `swpc-storm-${snapshot.space.kp.time || "now"}`,
+              title: `Geomagnetic storm in progress — planetary Kp ${snapshot.space.kp.kp}`,
+              summary: `NOAA SWPC reports Kp ${snapshot.space.kp.kp} (${snapshot.space.kp.level}). Storm-level geomagnetic activity can disturb power grids, satellite operations, and high-frequency communications.`,
+              category: "infrastructure",
+              severity: snapshot.space.kp.kp >= 7 ? "critical" : "high",
+              status: "monitoring",
+              region: "Global",
+              country: "Space weather",
+              latitude: 60,
+              longitude: 0,
+              sourceName: "NOAA SWPC",
+              sourceUrl: "https://www.swpc.noaa.gov/products/planetary-k-index",
+              publishedAt: snapshot.space.kp.time
+                ? `${snapshot.space.kp.time}Z`.replace(/Z+$/, "Z")
+                : new Date().toISOString(),
+              live: true,
+            },
+          ]
+        : [];
       const events = [
         ...curated,
         ...(snapshot.earthquakes || []),
         ...(snapshot.weather || []),
         ...(snapshot.natural || []),
+        ...(snapshot.globalNews || []),
+        ...spaceEvents,
         ...providerEvents,
       ].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
       const critical = events.filter(
@@ -283,10 +447,12 @@ export function createApp({
               riskScore,
               highPriority: high + critical,
             },
-            events: events.slice(0, 40),
+            events: events.slice(0, 120),
             news: snapshot.news,
             sourceStatus: snapshot.sourceStatus,
-            trend: trend(events.length, critical + high),
+            riskBreakdown: riskBreakdown(events),
+            space: snapshot.space || null,
+            trend: trend(events),
             layers: operationalPicture.layers,
             regions: operationalPicture.regions,
             correlations: operationalPicture.correlations,

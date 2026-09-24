@@ -34,6 +34,7 @@ import LoadingScreen from "../components/LoadingScreen.jsx";
 import WorldMap from "../components/WorldMap.jsx";
 import OrbitalGlobe from "../components/OrbitalGlobe.jsx";
 import {
+  ConstellationPanel,
   EnergyMacroPanel,
   MarketsPanel,
   ProviderChips,
@@ -820,6 +821,7 @@ export default function Operations() {
         <WebcamsPanel />
         <WeatherPanel />
         <MarketsPanel />
+        <ConstellationPanel />
         <EnergyMacroPanel />
         <TrackingPanel />
         <CorrelationPanel

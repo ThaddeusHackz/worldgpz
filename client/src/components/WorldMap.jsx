@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import {
+  CircleMarker,
   MapContainer,
   Marker,
   Polyline,
@@ -140,6 +141,7 @@ export default function WorldMap({
   focusedEvent,
   onFocus,
   scanning = false,
+  satellites = [],
 }) {
   const mappable = events.filter(
     (item) =>
@@ -237,6 +239,42 @@ export default function WorldMap({
           />
         )}
 
+        {satellites.map((sat) => (
+          <CircleMarker
+            key={sat.name}
+            center={[sat.latitude, sat.longitude]}
+            radius={3.5}
+            pathOptions={{
+              color: "#a78bff",
+              fillColor: "#a78bff",
+              fillOpacity: 0.95,
+              weight: 1,
+            }}
+          >
+            <Popup className="signal-popup">
+              <div className="popup-content">
+                <div className="popup-topline">
+                  <Satellite size={12} /> ORBITAL ASSET · SGP4
+                </div>
+                <strong>{sat.name}</strong>
+                <div className="popup-meta">
+                  <span>
+                    {Math.abs(sat.latitude).toFixed(1)}°
+                    {sat.latitude >= 0 ? "N" : "S"}{" "}
+                    {Math.abs(sat.longitude).toFixed(1)}°
+                    {sat.longitude >= 0 ? "E" : "W"}
+                  </span>
+                  <span>
+                    {Math.round(sat.altitudeKm).toLocaleString("en")} km
+                    {sat.speedKmH
+                      ? ` · ${Math.round(sat.speedKmH).toLocaleString("en")} km/h`
+                      : ""}
+                  </span>
+                </div>
+              </div>
+            </Popup>
+          </CircleMarker>
+        ))}
         <SatMarker />
         <MapController focusedEvent={focusedEvent} />
         <CrosshairReadout />

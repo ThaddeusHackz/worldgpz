@@ -3,8 +3,9 @@
  *
  * Continuously re-acquires every configured feed in the background so the
  * public dashboard is always served from hot caches (this also keeps
- * serverless containers warm), and exposes a public-safe heartbeat view:
- * feed counts, beat cadence, and provider health — never credentials.
+ * serverless containers warm), diffs each acquisition against the previous
+ * one to detect genuinely NEW signals, and pushes both heartbeats and fresh
+ * intercepts to realtime subscribers (server-sent events).
  */
 export class GridPulse {
   constructor({ config, liveSources, providers, media }) {
@@ -18,6 +19,9 @@ export class GridPulse {
     this.beatCount = 0;
     this.lastError = null;
     this.feeds = null;
+    this.listeners = new Set();
+    this.knownSignalIds = new Set();
+    this.primed = false;
     this.intervalMs = Math.max(
       60_000,
       (config.sourceCacheSeconds - 30) * 1000 || 270_000,
@@ -34,6 +38,22 @@ export class GridPulse {
 
   stop() {
     if (this.timer) clearInterval(this.timer);
+    this.listeners.clear();
+  }
+
+  subscribe(listener) {
+    this.listeners.add(listener);
+    return () => this.listeners.delete(listener);
+  }
+
+  #emit(event, payload) {
+    for (const listener of this.listeners) {
+      try {
+        listener(event, payload);
+      } catch {
+        this.listeners.delete(listener);
+      }
+    }
   }
 
   async #beat() {
@@ -64,15 +84,38 @@ export class GridPulse {
         earthquakes: snapshot.earthquakes?.length || 0,
         weather: snapshot.weather?.length || 0,
         naturalEvents: snapshot.natural?.length || 0,
+        worldNews: snapshot.globalNews?.length || 0,
         reports: snapshot.news?.length || 0,
         liveChannels: media.liveCount || 0,
       };
+
+      // Diff against the previous acquisition: brand-new signal IDs are
+      // broadcast as live intercepts over SSE.
+      const current = [
+        ...(snapshot.earthquakes || []),
+        ...(snapshot.weather || []),
+        ...(snapshot.natural || []),
+        ...(snapshot.globalNews || []),
+      ];
+      const fresh = [];
+      for (const signal of current) {
+        if (!this.knownSignalIds.has(signal.id)) fresh.push(signal);
+      }
+      if (!this.primed) {
+        // First beat establishes the baseline without flooding clients.
+        this.primed = true;
+      } else if (fresh.length) {
+        this.#emit("signals", fresh.slice(0, 8));
+      }
+      this.knownSignalIds = new Set(current.map((item) => item.id));
+
       this.lastError = null;
     } catch (error) {
       this.lastError = error?.message || "heartbeat error";
     } finally {
       this.beatCount += 1;
       this.lastBeatAt = new Date().toISOString();
+      this.#emit("pulse", this.view());
       if (this.config.env !== "test") {
         console.log(
           JSON.stringify({
