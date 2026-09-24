@@ -73,3 +73,17 @@ WORLDGPZ 2.0 ("Global Intelligence Monitor") was upgraded to **WORLDGPZ // GOD'S
 ## The ai.mongodb.com key
 
 The provided MongoDB "Model API Key" (`al-7wit…`) can be wired through the existing OpenAI-compatible AI adapter: set `AI_API_KEY`, `AI_BASE_URL=https://ai.mongodb.com/v1`, and `AI_MODEL` in the Render environment. If the endpoint's shape differs, the deterministic rules engine takes over automatically — briefs never break. Keys are never committed; they live in the deployment environment.
+
+---
+
+# Round 4 — Multi-Path Truth + Production Merge (2026-09-24)
+
+## DIRECT UPLINK
+
+- `client/src/lib/useDirectUplink.js` — the browser acquires USGS, Open-Meteo, EONET, SWPC, and GDELT directly (public CORS feeds), maps them to the relay event shape, dedupes by id, and the dashboard recomputes every displayed metric from the merged stream.
+- Acquisition strip: per-source **DIRECT / RELAY / OFFLINE** — the true path, always visible.
+- Estimated felt-radius rings (labeled) for M5+ seismic events; truthful boot sequence; fabricated chrome removed.
+
+## Production resilience
+
+- Missing `MONGODB_URI` or an unreachable cluster no longer crashes production: the server degrades to the ephemeral JSON store with a loud warning and a `persistence` flag in `/api/health`. Atlas can be wired whenever ready — the grid stays up.
