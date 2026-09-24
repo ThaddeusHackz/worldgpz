@@ -10,6 +10,9 @@
     "test": "vitest run"
   },
   "dependencies": {
+    "@fontsource/orbitron": "^5.3.0",
+    "@fontsource/rajdhani": "^5.3.0",
+    "@fontsource/share-tech-mono": "^5.3.0",
     "@vitejs/plugin-react": "^6.0.1",
     "date-fns": "^4.1.0",
     "leaflet": "^1.9.4",
@@ -21,6 +24,7 @@
     "recharts": "^3.1.2"
   },
   "devDependencies": {
+    "jsdom": "^30.1.1",
     "vite": "^8.2.1",
     "vitest": "^4.1.10"
   }

@@ -1,8 +1,37 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-  <defs><radialGradient id="g"><stop stop-color="#19382e"/><stop offset="1" stop-color="#07100e"/></radialGradient></defs>
+  <defs>
+    <radialGradient id="g" cx="70%" cy="40%" r="80%">
+      <stop offset="0%" stop-color="#04344f"/>
+      <stop offset="55%" stop-color="#041425"/>
+      <stop offset="100%" stop-color="#020409"/>
+    </radialGradient>
+    <radialGradient id="core" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#bffaff"/>
+      <stop offset="45%" stop-color="#00e5ff"/>
+      <stop offset="100%" stop-color="#00e5ff" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
   <rect width="1200" height="630" fill="url(#g)"/>
-  <g opacity=".18" stroke="#9ef45a" fill="none"><circle cx="850" cy="315" r="230"/><circle cx="850" cy="315" r="170"/><path d="M620 315h460M850 85c85 85 125 155 125 230S935 460 850 545M850 85c-85 85-125 155-125 230s40 145 125 230"/></g>
-  <text x="90" y="250" fill="#f5f7f2" font-family="Arial,sans-serif" font-weight="700" font-size="96" letter-spacing="-5">WORLDGPZ</text>
-  <text x="94" y="322" fill="#a4f85e" font-family="Arial,sans-serif" font-size="29" letter-spacing="7">GLOBAL INTELLIGENCE MONITOR</text>
-  <text x="94" y="400" fill="#a6afa9" font-family="Arial,sans-serif" font-size="25">See the signal. Verify the source. Understand the world.</text>
+  <g stroke="#00e5ff" opacity="0.08">
+    <path d="M0 90h1200M0 180h1200M0 270h1200M0 360h1200M0 450h1200M0 540h1200"/>
+    <path d="M100 0v630M200 0v630M300 0v630M400 0v630M500 0v630M600 0v630M700 0v630M800 0v630M900 0v630M1000 0v630M1100 0v630"/>
+  </g>
+  <g transform="translate(880 315)" fill="none" stroke="#00e5ff">
+    <circle r="235" opacity="0.14"/>
+    <circle r="175" opacity="0.2" stroke-dasharray="6 8"/>
+    <circle r="118" opacity="0.26"/>
+    <path d="M-235 0h470M0 -235v470" opacity="0.12"/>
+    <circle r="58" fill="url(#core)" stroke="none" opacity="0.9"/>
+    <path d="M-20 -20l40 40M20 -20l-40 40" stroke-width="3" opacity="0.9" transform="rotate(45)"/>
+    <rect x="-166" y="-166" width="332" height="332" opacity="0.5" transform="rotate(45)" stroke-width="2"/>
+  </g>
+  <g fill="#00e5ff">
+    <circle cx="760" cy="190" r="4"/><circle cx="1010" cy="240" r="4"/>
+    <circle cx="795" cy="440" r="4"/><circle cx="960" cy="470" r="4"/>
+    <circle cx="1055" cy="380" r="4"/><circle cx="700" cy="330" r="4"/>
+  </g>
+  <text x="90" y="245" fill="#ffffff" font-family="Arial Black,Arial,sans-serif" font-weight="900" font-size="100" letter-spacing="8">WORLDGPZ</text>
+  <text x="94" y="330" fill="#00e5ff" font-family="Arial,sans-serif" font-size="34" letter-spacing="16">GOD'S EYE // SIGNAL INTELLIGENCE</text>
+  <text x="94" y="412" fill="#93b6cb" font-family="Arial,sans-serif" font-size="27">Every signal. One eye on the world.</text>
+  <text x="94" y="560" fill="#5b7688" font-family="Consolas,monospace" font-size="20" letter-spacing="4">UPLINK: LOCKED · SATELLITES: 27/27 · CLEARANCE: OMEGA</text>
 </svg>

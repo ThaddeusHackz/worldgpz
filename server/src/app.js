@@ -93,6 +93,7 @@ export function createApp({
   intelligence,
   media,
   providers,
+  pulse,
 }) {
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
@@ -121,7 +122,13 @@ export function createApp({
             "https://*.ggpht.com",
             "https://*.windy.com",
           ],
-          connectSrc: ["'self'", "https://www.youtube.com"],
+          connectSrc: [
+            "'self'",
+            "https://www.youtube.com",
+            // Client-side orbital telemetry (ISS live fix)
+            "https://api.wheretheiss.at",
+            "https://api.open-notify.org",
+          ],
           frameSrc: [
             "'self'",
             "https://www.youtube.com",
@@ -201,10 +208,31 @@ export function createApp({
     res.set("cache-control", "no-store").json({
       status: "ok",
       service: "worldgpz",
-      version: "2.0.0",
+      codename: "gods-eye",
+      version: "3.1.0",
+      autonomous: Boolean(pulse?.view().alive),
       time: new Date().toISOString(),
       uptimeSeconds: Math.round(process.uptime()),
-      database: config.databaseUrl ? "postgresql" : "local",
+      database: config.mongodbUri ? "mongodb-atlas" : "local-json",
+    });
+  });
+
+  app.get("/api/v1/pulse", (_req, res) => {
+    res.set("cache-control", "no-store").json({
+      success: true,
+      data: pulse
+        ? pulse.view()
+        : {
+            alive: true,
+            autonomous: false,
+            startedAt: null,
+            lastBeatAt: null,
+            beatCount: 0,
+            intervalSeconds: 0,
+            feeds: null,
+            lastError: null,
+          },
+      generatedAt: new Date().toISOString(),
     });
   });
 

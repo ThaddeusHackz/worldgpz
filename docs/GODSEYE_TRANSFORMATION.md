@@ -1,0 +1,75 @@
+# GOD'S EYE Transformation — 2026-09-24
+
+WORLDGPZ 2.0 ("Global Intelligence Monitor") was upgraded to **WORLDGPZ // GOD'S EYE 3.0** — a cinematic, movie-grade global signal-intelligence grid in the spirit of the Fast & Furious "God's Eye", running on real, working public data infrastructure.
+
+## What changed
+
+### Identity
+
+- Product renamed across UI, metadata, and health endpoint: `WORLDGPZ // GOD'S EYE`, server `codename: gods-eye`, `version: 3.0.0`.
+- New radar-aperture brand mark (`favicon.svg`) and a new cinematic social card (`og-worldgpz.svg`).
+- New type system, self-hosted via Fontsource (no external font requests, CSP stays strict):
+  - **Orbitron** — display/headings
+  - **Rajdhani** — interface text
+  - **Share Tech Mono** — data/telemetry
+
+### Interface ("the movie layer")
+
+- **Boot sequence** — skippable power-on checklist with flicker-in log lines and progress bar. Plays once per session, honors `prefers-reduced-motion`.
+- **Tactical map HUD** — rotating radar sweep, range rings, crosshair, corner brackets, mouse-tracked `TRK lat/lon` coordinate readout, hue-shifted dark cartography.
+- **Target reticles** — Leaflet `DivIcon` markers with pulsing ping rings, hover tags, and a rotating lock frame + dashed HQ→target trace for the selected signal.
+- **Orbital tracking** — live ISS position/speed/altitude acquired client-side (5 s cadence) and plotted as an orbital asset with a telemetry chip; works with zero API keys in any deployment.
+- **Intercept console** — live signal log with severity levels, timestamps, blinking caret, and system events (grid sync, global sweep).
+- **Broadcast ticker** — bottom-of-screen live news/signal ticker; pauses on hover; every item links to its primary source.
+- **Global scan** — intensified sweep animation with system-log reporting of tracked targets.
+- **Animated counters** — requestAnimationFrame count-up on metric cards.
+- **Secure access terminal** — redesigned login ("Identify yourself"), biometric-styled, hardening untouched.
+- Full readibility pass: larger base type, higher-contrast palette (`#dcf6ff` on near-black), visible focus rings, `sr-only` labels preserved.
+
+### Engineering
+
+- `client/src/styles.css` rebuilt as a tokenized design system (chamfered panels, HUD corners, signal palette, reduced-motion support).
+- New unit surface: `client/src/pages/render.test.jsx` server-renders every public page through a mocked API to catch runtime regressions.
+- `lib/api.js` session storage hardened against restricted environments (private-mode browsers, SSR, embedded webviews).
+- API surface, provider adapters, auth, audit trail, and deployment blueprint unchanged — all existing keys on the deployment keep working; every adapter activates automatically when its key is present.
+
+## Verification performed
+
+- `npm run test:server` — 44/44 passing
+- `npm run test:client` — 6/6 passing (format + page render smoke)
+- `npm run build` — clean production bundle
+- `node scripts/forensic-scan.mjs http://localhost:4000` — 15/15 routes reachable
+- Login / session / brief / audit endpoints exercised against the running server
+- Class-coverage audit: 242 JSX class names ↔ 0 missing in the stylesheet
+
+## Notes
+
+- In restricted networks the keyless public adapters (USGS, Open-Meteo, NASA EONET, ReliefWeb) may be unreachable from the server; the curated baseline keeps the grid populated and every source card reports its true state.
+- The ISS layer intentionally runs client-side so it never depends on server egress.
+
+---
+
+# Round 2 — Atlas, Autonomy, and the Orbital Globe (2026-09-24)
+
+## MongoDB Atlas replaces Render PostgreSQL
+
+- The dead Render free-tier database (`worldgpz-db`) is **removed from `render.yaml`, config, code, and docs**.
+- New `server/src/store.mongo.js` (MongoDB driver 7.x) implements the full store contract: users, events, audit trail, indexes, bootstrap-admin reconciliation, seed events.
+- `MONGODB_URI` + `MONGODB_DB` env vars; production fails fast when the URI is missing. Local dev keeps the atomic JSON store; tests keep `:memory:`.
+- `pg` dependency deleted. Health now reports `database: mongodb-atlas | local-json`.
+
+## Autonomous grid ("breathing")
+
+- `server/src/services/pulse.js` — `GridPulse` heartbeat: warms every configured feed at boot and re-acquires on a continuous cadence (default 270 s), keeping caches hot and serverless containers warm; logs each beat.
+- Public `/api/v1/pulse` endpoint exposes beat count, cadence, and feed counts (public-safe).
+- Dashboard: live **AUTONOMOUS GRID** chip with heartbeat counter; the grid auto-sweeps every 4 minutes on its own.
+
+## 3D ORBITAL GLOBE (gods-eye-view-inspired)
+
+- `client/src/components/OrbitalGlobe.jsx` — interactive canvas globe: drag to slew, tap to lock a target, auto-rotation, live signal pings, HQ intercept traces, ISS marker, sub-point readout, scanning mode.
+- `client/src/lib/landmask.js` — 1°-resolution Natural Earth land mask (8.1 KB bit-packed), generated by `scripts/build-landmask.mjs`.
+- Available from the command map (`2D GRID / 3D ORBIT` toggle) and the ops room (`3D` button, previously a placeholder).
+
+## The ai.mongodb.com key
+
+The provided MongoDB "Model API Key" (`al-7wit…`) can be wired through the existing OpenAI-compatible AI adapter: set `AI_API_KEY`, `AI_BASE_URL=https://ai.mongodb.com/v1`, and `AI_MODEL` in the Render environment. If the endpoint's shape differs, the deterministic rules engine takes over automatically — briefs never break. Keys are never committed; they live in the deployment environment.

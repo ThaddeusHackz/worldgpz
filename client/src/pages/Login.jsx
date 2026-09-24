@@ -2,13 +2,13 @@ import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import {
   ArrowLeft,
-  ArrowRight,
   Eye,
   EyeOff,
+  Fingerprint,
   KeyRound,
   LockKeyhole,
   ShieldCheck,
-  Sparkles,
+  ScanFace,
 } from "lucide-react";
 import { Brand } from "../components/Brand.jsx";
 import { useAuth } from "../lib/auth.jsx";
@@ -46,16 +46,16 @@ export default function Login() {
         <Brand />
         <div className="login-visual-copy">
           <span className="eyebrow">
-            <i /> Restricted operations
+            <i /> Restricted operations · clearance omega
           </span>
           <h1>
-            Control the signal.
+            Whoever you look for,
             <br />
-            <em>Protect the truth.</em>
+            <em>the eye will find.</em>
           </h1>
           <p>
-            The secure console gives authorized editors control over curated
-            events, source health, and the audit trail.
+            The secure console gives authorized operators command over curated
+            events, uplink health, and the full audit trail.
           </p>
           <div className="security-points">
             <div>
@@ -73,7 +73,7 @@ export default function Login() {
               </span>
             </div>
             <div>
-              <Sparkles size={18} />
+              <ScanFace size={18} />
               <span>
                 <strong>Recorded changes</strong>
                 <small>Full operational audit trail</small>
@@ -93,73 +93,72 @@ export default function Login() {
 
       <section className="login-form-side">
         <Link to="/" className="back-link">
-          <ArrowLeft size={15} /> Back to live monitor
+          <ArrowLeft size={15} /> Back to live grid
         </Link>
         <form className="login-form" onSubmit={submit}>
           <div className="login-icon">
             <KeyRound size={24} />
           </div>
-          <span className="panel-kicker">Administrator access</span>
-          <h2>Welcome back</h2>
+          <span className="panel-kicker">Operator authentication</span>
+          <h2>Identify yourself</h2>
           <p>
-            Use the credentials configured in your private environment
-            variables.
+            Biometric calibration unavailable — use the operator credentials
+            configured in your private environment.
           </p>
 
           <label>
-            <span>Email address</span>
+            <span>Operator identity</span>
             <input
               type="email"
               autoComplete="username"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="admin@example.com"
+              placeholder="operator@worldgpz.local"
               required
               autoFocus
             />
           </label>
-          <label>
-            <span>Password</span>
-            <div className="password-field">
-              <input
-                type={showPassword ? "text" : "password"}
-                autoComplete="current-password"
-                value={password}
-                onChange={(event) => setPassword(event.target.value)}
-                placeholder="Enter your secure password"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword((value) => !value)}
-                aria-label={showPassword ? "Hide password" : "Show password"}
-              >
-                {showPassword ? <EyeOff size={17} /> : <Eye size={17} />}
-              </button>
-            </div>
+          <label className="password-field">
+            <span>Access phrase</span>
+            <input
+              type={showPassword ? "text" : "password"}
+              autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
+              placeholder="••••••••••••"
+              required
+              minLength={12}
+            />
+            <button
+              type="button"
+              onClick={() => setShowPassword((value) => !value)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+            >
+              {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+            </button>
           </label>
-          {error && (
-            <div className="login-error" role="alert">
-              {error}
-            </div>
-          )}
+
+          {error && <div className="login-error">{error}</div>}
+
           <button
-            className="button primary login-submit"
             type="submit"
+            className="button primary full login-submit"
             disabled={busy}
           >
             {busy ? (
-              "Authenticating…"
+              <>
+                <Fingerprint size={16} className="spin" /> Verifying identity…
+              </>
             ) : (
               <>
-                Open secure console <ArrowRight size={16} />
+                <Fingerprint size={16} /> Authenticate
               </>
             )}
           </button>
-          <div className="form-security">
-            <ShieldCheck size={14} /> Credentials are sent only to the
-            same-origin API over HTTPS in production.
-          </div>
+          <p className="security-note">
+            Sessions expire automatically. All authentication attempts are
+            recorded to the audit trail.
+          </p>
         </form>
       </section>
     </main>

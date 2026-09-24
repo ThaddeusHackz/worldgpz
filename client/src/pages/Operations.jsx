@@ -32,6 +32,7 @@ import { Brand } from "../components/Brand.jsx";
 import YouTubePlayer from "../components/YouTubePlayer.jsx";
 import LoadingScreen from "../components/LoadingScreen.jsx";
 import WorldMap from "../components/WorldMap.jsx";
+import OrbitalGlobe from "../components/OrbitalGlobe.jsx";
 import {
   EnergyMacroPanel,
   MarketsPanel,
@@ -95,10 +96,10 @@ function OpsHeader({
       <Link to="/" className="ops-home" aria-label="Return to overview">
         <Brand compact />
       </Link>
-      <span className="ops-product">MONITOR</span>
-      <span className="ops-version">v2.1</span>
+      <span className="ops-product">GOD&apos;S EYE</span>
+      <span className="ops-version">TAC-OPS v3.0</span>
       <span className="ops-live">
-        <i /> LIVE
+        <i /> LIVE GRID
       </span>
       <label className="ops-region-select">
         <Globe2 size={13} />
@@ -113,7 +114,7 @@ function OpsHeader({
         <ChevronDown size={12} />
       </label>
       <div
-        className={`ops-watch ${(data?.metrics.riskScore || 0) >= 65 ? "elevated" : "measured"}`}
+        className={`ops-watch ${(data?.metrics.riskScore || 0) >= 65 ? "elevated" : ""}`}
       >
         <span>WATCH</span>
         <strong>{data?.metrics.riskScore ?? "—"}</strong>
@@ -184,7 +185,7 @@ function SignalPanel({ events, news, onFocus }) {
       <header>
         <div>
           <Newspaper size={14} />
-          <strong>Live intelligence</strong>
+          <strong>Live intercepts</strong>
           <span>{items.length}</span>
         </div>
         <div className="ops-panel-tabs">
@@ -604,6 +605,7 @@ export default function Operations() {
   const [focusedEvent, setFocusedEvent] = useState(null);
   const [layerOpen, setLayerOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [viewMode, setViewMode] = useState("2D");
 
   async function load() {
     setRefreshing(true);
@@ -733,11 +735,19 @@ export default function Operations() {
           onClose={() => setLayerOpen(false)}
         />
         <div className="ops-map">
-          <WorldMap
-            events={events}
-            focusedEvent={focusedEvent?.title ? focusedEvent : focusedEvent}
-            onFocus={setFocusedEvent}
-          />
+          {viewMode === "3D" ? (
+            <OrbitalGlobe
+              events={events}
+              focusedEvent={focusedEvent}
+              onFocus={setFocusedEvent}
+            />
+          ) : (
+            <WorldMap
+              events={events}
+              focusedEvent={focusedEvent?.title ? focusedEvent : focusedEvent}
+              onFocus={setFocusedEvent}
+            />
+          )}
         </div>
         <div className="ops-map-status">
           <span>
@@ -748,11 +758,22 @@ export default function Operations() {
             {data.metrics.sourcesOnline}/{data.metrics.sourcesTotal} sources
           </span>
         </div>
-        <div className="ops-view-toggle">
-          <button className="active">2D</button>
+        <div
+          className="ops-view-toggle"
+          role="group"
+          aria-label="Projection mode"
+        >
           <button
-            title="3D globe is planned for a future GPU renderer"
-            disabled
+            className={viewMode === "2D" ? "active" : ""}
+            onClick={() => setViewMode("2D")}
+            aria-pressed={viewMode === "2D"}
+          >
+            2D
+          </button>
+          <button
+            className={viewMode === "3D" ? "active" : ""}
+            onClick={() => setViewMode("3D")}
+            aria-pressed={viewMode === "3D"}
           >
             3D
           </button>

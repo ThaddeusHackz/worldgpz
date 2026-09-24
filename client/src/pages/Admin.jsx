@@ -710,6 +710,7 @@ export default function Admin() {
 
   return (
     <div className="admin-shell">
+      <div className="hud-grid" aria-hidden="true" />
       {navOpen && (
         <button
           className="admin-nav-scrim"
@@ -756,7 +757,7 @@ export default function Admin() {
             <Menu size={19} />
           </button>
           <div className="admin-breadcrumb">
-            <span>WORLDGPZ</span>
+            <span>WORLDGPZ · GOD&apos;S EYE</span>
             <ChevronRight size={13} />
             <strong>{tabs.find((item) => item.id === tab)?.label}</strong>
           </div>
