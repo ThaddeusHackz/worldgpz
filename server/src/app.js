@@ -301,7 +301,8 @@ export function createApp({
       time: new Date().toISOString(),
       uptimeSeconds: Math.round(process.uptime()),
       database: config.mongodbUri ? "mongodb-atlas" : "local-json",
-      persistence: config.mongodbUri ? "durable" : "ephemeral",
+      persistence: vault?.persistence?.tier ?? "ephemeral",
+      vaultBackend: vault?.persistence?.backend ?? "none",
     });
   });
 
@@ -851,12 +852,97 @@ export function createApp({
       success: true,
       data: vault ? vault.view() : [],
       meta: {
-        persistence: config.mongodbUri ? "mongodb-atlas" : "local-json",
-        durable: Boolean(config.mongodbUri),
+        persistence: vault?.persistence ?? {
+          tier: "unavailable",
+          backend: "none",
+          survivesRedeploy: false,
+          survivesMachineChange: false,
+        },
+        durable: vault?.persistence?.survivesRedeploy ?? false,
         loadedAt: vault?.loadedAt ?? null,
+        seededFromEnv: vault?.envSeedCount ?? 0,
+        envSeedError: vault?.envSeedError ?? null,
       },
     });
   });
+
+  /**
+   * Export the vault as one encrypted blob for `WORLDGPZ_VAULT`.
+   *
+   * This is how keys become permanent on hosts with ephemeral filesystems:
+   * the operator copies the blob into the platform environment, and every
+   * future cold start reseeds the same credentials.
+   */
+  app.get("/api/admin/keys/export", authenticate, adminOnly, (_req, res) => {
+    if (!vault)
+      return res
+        .status(503)
+        .json({ success: false, error: "Secure vault unavailable" });
+    try {
+      return res.set("cache-control", "no-store").json({
+        success: true,
+        data: {
+          blob: vault.export(),
+          envKey: "WORLDGPZ_VAULT",
+          keyCount: Object.keys(vault.stored).length,
+          exportedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      return res
+        .status(400)
+        .json({ success: false, error: error.message || "Export failed" });
+    }
+  });
+
+  /** Import an encrypted vault blob exported from another deployment. */
+  app.post(
+    "/api/admin/keys/import",
+    authenticate,
+    adminOnly,
+    async (req, res, next) => {
+      try {
+        if (!vault)
+          return res
+            .status(503)
+            .json({ success: false, error: "Secure vault unavailable" });
+        const blob = String(req.body?.blob || "").trim();
+        const overwrite = Boolean(req.body?.overwrite);
+        if (!blob)
+          return res
+            .status(400)
+            .json({ success: false, error: "A vault blob is required" });
+
+        const updated = await vault.import(blob, { overwrite });
+        await store.addAudit({
+          actorEmail: req.user.email,
+          action: "settings.import",
+          entityType: "settings",
+          metadata: {
+            keys: updated.touched,
+            overwrite,
+            requestId: req.id,
+          },
+        });
+        try {
+          providers?.invalidate?.();
+          liveSources?.invalidate?.();
+          media?.invalidate?.();
+        } catch {
+          /* best-effort */
+        }
+        return res.set("cache-control", "no-store").json({
+          success: true,
+          data: updated.view,
+          meta: { touched: updated.touched, persistence: vault.persistence },
+        });
+      } catch (error) {
+        if (error.status === 400)
+          return res.status(400).json({ success: false, error: error.message });
+        return next(error);
+      }
+    },
+  );
 
   app.put(
     "/api/admin/keys",
@@ -886,19 +972,30 @@ export function createApp({
             requestId: req.id,
           },
         });
-        // Warm the provider mesh immediately so new keys go live without
-        // waiting for the next autonomous pulse.
+        // Hard-reset every provider cache so freshly sealed keys are live on
+        // the very next read. Previously the merged-source and adapter caches
+        // kept serving a `not-configured` snapshot built from the old (missing)
+        // credential for the full TTL, so newly pasted keys looked dead.
         try {
-          providers?.status();
+          providers?.invalidate?.();
+          liveSources?.invalidate?.();
+          media?.invalidate?.();
         } catch {
-          /* background warm-up is best-effort */
+          /* cache reset is best-effort; the next pulse recovers it */
         }
+        // Warm the provider mesh immediately so new keys populate without
+        // waiting for the next autonomous pulse.
+        void Promise.allSettled([
+          providers?.status(),
+          liveSources?.snapshot({ fresh: true }),
+          media?.list(),
+        ]).catch(() => {});
         return res.set("cache-control", "no-store").json({
           success: true,
           data: updated.view,
           meta: {
-            persistence: config.mongodbUri ? "mongodb-atlas" : "local-json",
-            durable: Boolean(config.mongodbUri),
+            persistence: vault.persistence,
+            durable: vault.persistence?.survivesRedeploy ?? false,
             savedAt: new Date().toISOString(),
           },
         });

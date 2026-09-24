@@ -50,6 +50,19 @@ export class LiveSourcesService {
     this.cachedAt = 0;
   }
 
+  /**
+   * Drop the merged-source cache so the next snapshot re-reads credentials.
+   *
+   * Required when an operator pastes new keys in the admin console: without
+   * this the previously cached `sourceStatus` (built from the old, missing
+   * key) keeps reporting `not-configured` for the full sourceCacheSeconds
+   * window — which is exactly why freshly saved keys appeared to do nothing.
+   */
+  invalidate() {
+    this.cache = null;
+    this.cachedAt = 0;
+  }
+
   async #fetchJson(url, options = {}) {
     const response = await fetch(url, {
       ...options,

@@ -22,6 +22,13 @@ services:
         sync: false
       - key: MONGODB_DB
         value: worldgpz
+      # Encrypted vault blob. Export it from the admin console
+      # (Secure uplink vault → Export encrypted vault) and paste it here so
+      # admin-entered API keys survive redeploys on the ephemeral filesystem.
+      - key: WORLDGPZ_VAULT
+        sync: false
+      - key: WORLDGPZ_VAULT_SECRET
+        sync: false
       - key: NEWS_API_KEY
         sync: false
       - key: YOUTUBE_API_KEY

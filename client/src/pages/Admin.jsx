@@ -8,6 +8,7 @@ import {
   CircleGauge,
   Cloud,
   Database,
+  Download,
   Eraser,
   ExternalLink,
   Eye,
@@ -31,6 +32,7 @@ import {
   ShieldCheck,
   Trash2,
   TriangleAlert,
+  Upload,
   X,
 } from "lucide-react";
 import { Brand } from "../components/Brand.jsx";
@@ -531,7 +533,168 @@ function EventRegistry({ events, query, setQuery, onNew, onEdit, onDelete }) {
  * server-side (MongoDB Atlas / local JSON), survives reloads and restarts,
  * and works from any machine. Only masked previews ever reach the browser.
  */
-export function UplinkKeys({ vault, onSave }) {
+/**
+ * Durability panel + encrypted vault transport.
+ *
+ * States the truth about where keys actually live, and gives the operator the
+ * one action that makes them permanent on hosts with ephemeral filesystems:
+ * export an encrypted blob and set it as `WORLDGPZ_VAULT`.
+ */
+function VaultPersistence({ meta, onImported }) {
+  const persistence = meta?.persistence || {};
+  const durable = Boolean(persistence.survivesRedeploy);
+  const [blob, setBlob] = useState("");
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState(null);
+  const [importText, setImportText] = useState("");
+
+  const backendLabel =
+    {
+      mongodb: "MongoDB Atlas",
+      "encrypted-env": "Encrypted env blob",
+      "local-json": "Local JSON file",
+      memory: "In-memory",
+      none: "No store",
+    }[persistence.backend] || "Unknown store";
+
+  async function copyBlob() {
+    setBusy("export");
+    setNotice(null);
+    try {
+      const payload = await api("/api/admin/keys/export");
+      setBlob(payload.data.blob);
+      try {
+        await navigator.clipboard.writeText(payload.data.blob);
+        setNotice({
+          kind: "ok",
+          text: `${payload.data.keyCount} key(s) encrypted and copied to your clipboard. Paste it into WORLDGPZ_VAULT.`,
+        });
+      } catch {
+        setNotice({
+          kind: "warn",
+          text: "Clipboard blocked by the browser — copy the blob from the box below.",
+        });
+      }
+    } catch (requestError) {
+      setNotice({ kind: "error", text: requestError.message });
+    } finally {
+      setBusy("");
+    }
+  }
+
+  async function importBlob() {
+    if (!importText.trim()) return;
+    setBusy("import");
+    setNotice(null);
+    try {
+      const payload = await api("/api/admin/keys/import", {
+        method: "POST",
+        body: { blob: importText.trim(), overwrite: false },
+      });
+      setNotice({
+        kind: "ok",
+        text: `Imported ${payload.meta.touched.length} key(s). Existing keys were preserved.`,
+      });
+      setImportText("");
+      onImported?.();
+    } catch (requestError) {
+      setNotice({ kind: "error", text: requestError.message });
+    } finally {
+      setBusy("");
+    }
+  }
+
+  return (
+    <div className={`vault-persistence ${durable ? "durable" : "ephemeral"}`}>
+      {durable ? <Cloud size={17} /> : <HardDrive size={17} />}
+      <div className="vault-persistence-copy">
+        <strong>
+          {durable
+            ? `${backendLabel} — durable across redeploys and machines`
+            : `${backendLabel} — NOT durable across redeploys`}
+        </strong>
+        <p>{persistence.note || "Persistence status unavailable."}</p>
+        {meta?.envSeedError && (
+          <p className="vault-persistence-error">
+            Vault blob present but unusable: {meta.envSeedError}
+          </p>
+        )}
+        {meta?.seededFromEnv > 0 && (
+          <p className="vault-persistence-ok">
+            {meta.seededFromEnv} key(s) reseeded from WORLDGPZ_VAULT on this
+            boot.
+          </p>
+        )}
+      </div>
+      <span className={`vault-chip ${durable ? "on" : ""}`}>
+        {durable ? "PERSISTENT" : "EPHEMERAL"}
+      </span>
+
+      <div className="vault-transport">
+        <p className="vault-transport-hint">
+          Export produces a single AES-256-GCM encrypted string. Set it as{" "}
+          <code>WORLDGPZ_VAULT</code> in your host environment and every future
+          cold start reseeds these keys — no database required.
+        </p>
+        <div className="vault-transport-actions">
+          <button
+            type="button"
+            className="button ghost"
+            onClick={copyBlob}
+            disabled={busy === "export"}
+          >
+            <Download size={15} />
+            {busy === "export" ? "Encrypting…" : "Export encrypted vault"}
+          </button>
+        </div>
+
+        {blob && (
+          <div className="vault-blob">
+            <label htmlFor="vault-blob-out">
+              Set this as <code>WORLDGPZ_VAULT</code> in your host environment,
+              then redeploy once:
+            </label>
+            <textarea
+              id="vault-blob-out"
+              readOnly
+              rows={3}
+              value={blob}
+              onFocus={(event) => event.target.select()}
+            />
+          </div>
+        )}
+
+        <div className="vault-blob">
+          <label htmlFor="vault-blob-in">
+            Restore a vault exported from another machine:
+          </label>
+          <textarea
+            id="vault-blob-in"
+            rows={2}
+            placeholder="wgv1.… paste an exported blob here"
+            value={importText}
+            onChange={(event) => setImportText(event.target.value)}
+          />
+          <button
+            type="button"
+            className="button ghost"
+            onClick={importBlob}
+            disabled={busy === "import" || !importText.trim()}
+          >
+            <Upload size={15} />
+            {busy === "import" ? "Decrypting…" : "Import vault"}
+          </button>
+        </div>
+
+        {notice && (
+          <p className={`vault-notice ${notice.kind}`}>{notice.text}</p>
+        )}
+      </div>
+    </div>
+  );
+}
+
+export function UplinkKeys({ vault, onSave, onImported }) {
   const entries = vault?.data || [];
   const meta = vault?.meta || {};
   const [drafts, setDrafts] = useState({});
@@ -615,26 +778,7 @@ export function UplinkKeys({ vault, onSave }) {
         </div>
       </div>
 
-      <div
-        className={`vault-persistence ${meta.durable ? "durable" : "ephemeral"}`}
-      >
-        {meta.durable ? <Cloud size={17} /> : <HardDrive size={17} />}
-        <div>
-          <strong>
-            {meta.durable
-              ? "MongoDB Atlas — durable cross-machine storage"
-              : "Local JSON store — durable on this host"}
-          </strong>
-          <p>
-            {meta.durable
-              ? "Saved keys re-apply to the provider mesh on every boot, in every region."
-              : "Keys survive reloads and restarts on this host. Connect MONGODB_URI for global durability."}
-          </p>
-        </div>
-        <span className={`vault-chip ${meta.durable ? "on" : ""}`}>
-          {meta.durable ? "SYNCED" : "LOCAL"}
-        </span>
-      </div>
+      <VaultPersistence meta={meta} onImported={onImported} />
 
       <form onSubmit={submit}>
         {groups.map((group) => (
@@ -961,6 +1105,15 @@ export default function Admin() {
     setEditor(null);
     setEditorOpen(true);
   }
+  /** Re-read the vault after an import so the grid reflects the new keys. */
+  function refreshVault() {
+    return api("/api/admin/keys")
+      .then((payload) => {
+        setVault(payload);
+        setToast("Vault imported and re-applied to the provider mesh");
+      })
+      .catch(() => {});
+  }
   async function saveKeys(keys) {
     const response = await api("/api/admin/keys", {
       method: "PUT",
@@ -1110,7 +1263,13 @@ export default function Admin() {
                   onDelete={remove}
                 />
               )}
-              {tab === "keys" && <UplinkKeys vault={vault} onSave={saveKeys} />}
+              {tab === "keys" && (
+                <UplinkKeys
+                  vault={vault}
+                  onSave={saveKeys}
+                  onImported={refreshVault}
+                />
+              )}
               {tab === "sources" && <SourcesView sources={sources} />}
               {tab === "audit" && <AuditView audits={audits} />}
             </>

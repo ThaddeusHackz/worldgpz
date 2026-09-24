@@ -270,7 +270,7 @@ body::after {
   gap: 7px;
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.22em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cyan-soft);
 }
@@ -490,7 +490,7 @@ body::after {
 
 kbd {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--dim);
   border: 1px solid var(--line);
   border-bottom-width: 2px;
@@ -641,15 +641,15 @@ label > span {
   font-family: var(--font-display);
   font-size: 17px;
   font-weight: 800;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.16em;
   color: #fff;
   text-shadow: 0 0 16px rgba(0, 229, 255, 0.5);
 }
 
 .brand-copy small {
   font-family: var(--font-mono);
-  font-size: 9px;
-  letter-spacing: 0.34em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--dim);
   margin-top: 3px;
@@ -747,7 +747,7 @@ label > span {
   font-family: var(--font-display);
   font-size: clamp(26px, 5vw, 38px);
   font-weight: 900;
-  letter-spacing: 0.32em;
+  letter-spacing: 0.16em;
   color: #fff;
   text-shadow: 0 0 24px rgba(0, 229, 255, 0.65);
 }
@@ -755,7 +755,7 @@ label > span {
 .boot-title span {
   font-family: var(--font-mono);
   font-size: 11px;
-  letter-spacing: 0.4em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cyan-soft);
 }
@@ -808,8 +808,8 @@ label > span {
 .boot-skip {
   align-self: flex-end;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.3em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -829,7 +829,7 @@ label > span {
   color: var(--dim);
   font-family: var(--font-mono);
   font-size: 12px;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
 }
 
@@ -1021,8 +1021,8 @@ label > span {
   align-items: center;
   gap: 9px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--lime);
   padding: 0 6px;
@@ -1238,8 +1238,8 @@ label > span {
 
 .last-sync span {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.26em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -1338,8 +1338,8 @@ label > span {
 
 .metric-card p {
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--dim);
   white-space: nowrap;
@@ -1364,7 +1364,7 @@ label > span {
   align-items: center;
   gap: 4px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -1431,7 +1431,7 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--dim);
@@ -1465,7 +1465,7 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--violet);
@@ -1497,7 +1497,7 @@ label > span {
   display: flex;
   gap: 16px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
@@ -1637,8 +1637,8 @@ label > span {
 .selected-signal small {
   display: block;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cyan-soft);
 }
@@ -1767,7 +1767,7 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
@@ -1916,7 +1916,7 @@ label > span {
   font-family: var(--font-mono);
   font-size: 12px;
   color: var(--faint);
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
 }
 
 .risk-card h2 {
@@ -1991,8 +1991,8 @@ label > span {
 
 .watchlist span {
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -2064,7 +2064,7 @@ label > span {
   display: flex;
   gap: 18px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
@@ -2294,7 +2294,7 @@ label > span {
   color: #fff;
   font-size: 11px;
   font-weight: 700;
-  letter-spacing: 0.24em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   box-shadow: 0 0 18px rgba(255, 46, 77, 0.45);
   clip-path: polygon(0 0, 100% 0, calc(100% - 10px) 100%, 0 100%);
@@ -2410,8 +2410,8 @@ label > span {
   padding: 9px 14px;
   border-bottom: 1px solid var(--line);
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.24em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cyan-soft);
   background: linear-gradient(180deg, rgba(0, 229, 255, 0.08), transparent);
@@ -2636,7 +2636,7 @@ label > span {
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--lime);
@@ -2719,7 +2719,7 @@ label > span {
   background: rgba(1, 5, 10, 0.8) !important;
   color: var(--faint) !important;
   font-family: var(--font-mono);
-  font-size: 9.5px !important;
+  font-size: 11px !important;
   letter-spacing: 0.04em;
   border-top: 1px solid var(--line);
 }
@@ -2808,7 +2808,7 @@ label > span {
   left: 50%;
   transform: translateX(-50%);
   font-family: var(--font-mono);
-  font-size: 8.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   color: currentColor;
   background: rgba(1, 5, 10, 0.85);
@@ -2910,8 +2910,8 @@ label > span {
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cyan-soft);
 }
@@ -2956,7 +2956,7 @@ label > span {
   justify-content: space-between;
   gap: 10px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--faint);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -3025,14 +3025,14 @@ label > span {
   font-family: var(--font-display);
   font-size: 15px;
   font-weight: 900;
-  letter-spacing: 0.3em;
+  letter-spacing: 0.16em;
   color: #fff;
   text-shadow: 0 0 16px rgba(0, 229, 255, 0.55);
 }
 
 .ops-version {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: #03151d;
   background: var(--cyan);
   padding: 3px 8px;
@@ -3045,8 +3045,8 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--lime);
 }
@@ -3207,8 +3207,8 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.22em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -3224,7 +3224,7 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3371,7 +3371,7 @@ label > span {
   gap: 8px;
   padding: 9px 12px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3418,7 +3418,7 @@ label > span {
   place-items: center;
   border: 1px solid var(--line);
   color: var(--cyan);
-  font-size: 10px;
+  font-size: 11px;
 }
 
 .ops-layer-list button.active .ops-check {
@@ -3446,7 +3446,7 @@ label > span {
   padding: 9px 12px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3544,8 +3544,8 @@ label > span {
 .table-badge {
   align-self: flex-start;
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   padding: 3px 8px;
   border: 1px solid;
@@ -3595,7 +3595,7 @@ label > span {
   justify-content: space-between;
   gap: 10px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3654,7 +3654,7 @@ label > span {
 
 .ops-panel > header span {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--cyan);
   border: 1px solid var(--line);
   padding: 1px 7px;
@@ -3665,7 +3665,7 @@ label > span {
   margin-left: auto;
   font-style: normal;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3680,7 +3680,7 @@ label > span {
 
 .ops-panel-tabs button {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3702,7 +3702,7 @@ label > span {
   padding: 9px 14px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -3744,7 +3744,7 @@ label > span {
 
 .ops-feed-row small {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   color: var(--faint);
 }
 
@@ -3823,7 +3823,7 @@ label > span {
 
 .ops-region-board small {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
   letter-spacing: 0.06em;
   text-transform: uppercase;
@@ -3948,7 +3948,7 @@ label > span {
 
 .ops-video-poster span {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
@@ -3985,7 +3985,7 @@ label > span {
   padding: 8px 12px;
   background: linear-gradient(180deg, transparent, rgba(1, 4, 8, 0.92));
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   color: var(--dim);
 }
@@ -4054,7 +4054,7 @@ label > span {
   gap: 7px;
   flex: none;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--dim);
   border: 1px solid var(--line-soft);
@@ -4088,7 +4088,7 @@ label > span {
   gap: 7px;
   padding: 9px 14px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   color: var(--faint);
   border-top: 1px solid var(--line-soft);
@@ -4109,8 +4109,8 @@ label > span {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   color: var(--lime);
 }
 
@@ -4228,7 +4228,7 @@ label > span {
   align-items: center;
   gap: 8px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -4285,7 +4285,7 @@ label > span {
 .ops-tracking-row small {
   color: var(--faint);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   display: block;
 }
 
@@ -4336,7 +4336,7 @@ label > span {
 
 .ops-quote-row small {
   color: var(--faint);
-  font-size: 10.5px;
+  font-size: 11px;
 }
 
 .ops-quote-row em {
@@ -4402,7 +4402,7 @@ label > span {
   bottom: 0;
   padding: 4px 7px;
   font-family: var(--font-mono);
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.06em;
   text-transform: uppercase;
   color: var(--ice);
@@ -4444,7 +4444,7 @@ label > span {
   padding: 9px 14px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--faint);
@@ -4468,7 +4468,7 @@ label > span {
   margin-left: auto;
   font-style: normal;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
@@ -4575,7 +4575,7 @@ label > span {
   margin-left: auto;
   font-style: normal;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
@@ -4589,7 +4589,7 @@ label > span {
   padding: 10px 16px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   color: var(--faint);
 }
@@ -4607,7 +4607,7 @@ label > span {
   padding: 14px 2px 0;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -4772,8 +4772,8 @@ label > span {
 .visual-footnote {
   position: relative;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.26em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--faint);
 }
@@ -4919,7 +4919,7 @@ label > span {
   font-family: var(--font-display);
   font-size: 16px;
   font-weight: 800;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: #fff;
 }
@@ -4987,8 +4987,8 @@ label > span {
 
 .admin-label {
   font-family: var(--font-mono);
-  font-size: 10.5px;
-  letter-spacing: 0.22em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--dim);
 }
@@ -5010,7 +5010,7 @@ label > span {
   padding: 14px;
   border-top: 1px solid var(--line-soft);
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--faint);
@@ -5079,7 +5079,7 @@ label > span {
 
 .registry-table th {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--dim);
@@ -5131,7 +5131,7 @@ label > span {
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--dim);
@@ -5474,7 +5474,7 @@ label > span {
     padding: 9px 4px;
     color: var(--dim);
     font-family: var(--font-mono);
-    font-size: 9px;
+    font-size: 11px;
     letter-spacing: 0.14em;
     text-transform: uppercase;
   }
@@ -5567,7 +5567,7 @@ body {
 
 .source-state {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--faint);
@@ -5599,7 +5599,7 @@ body {
 
 .map-view-toggle button {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   color: var(--dim);
   padding: 6px 12px;
@@ -5632,7 +5632,7 @@ body {
   position: absolute;
   z-index: 10;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--cyan-soft);
@@ -5671,7 +5671,7 @@ body {
   align-items: center;
   gap: 9px;
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--lime);
@@ -5781,7 +5781,7 @@ body {
 .toast-item small {
   display: block;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--faint);
@@ -5827,7 +5827,7 @@ body {
 .risk-breakdown span {
   grid-column: 1 / -1;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--dim);
@@ -5893,7 +5893,7 @@ body {
 /* Pulse chip stream tag */
 .pulse-chip u {
   text-decoration: none;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 0.16em;
   color: var(--lime);
   border-left: 1px solid rgba(70, 240, 160, 0.35);
@@ -5926,8 +5926,8 @@ body {
   align-items: center;
   gap: 7px;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   color: var(--cyan-soft);
   margin-right: 4px;
 }
@@ -5937,7 +5937,7 @@ body {
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.1em;
   padding: 3px 8px;
   border: 1px solid var(--line-soft);
@@ -5980,7 +5980,7 @@ body {
 /* Impact estimate ring label */
 .impact-note {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.08em;
   color: var(--amber);
 }
@@ -6478,7 +6478,7 @@ select option {
 .admin-sidebar nav button em {
   margin-left: auto;
   font-style: normal;
-  font-size: 10px;
+  font-size: 11px;
   padding: 2px 7px;
   border-radius: 999px;
   background: rgba(0, 229, 255, 0.12);
@@ -6705,7 +6705,7 @@ select option {
 
 .registry-table th {
   font-family: var(--font-mono);
-  font-size: 10.5px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   text-transform: uppercase;
   color: var(--cyan-soft);
@@ -6984,15 +6984,16 @@ select option {
 }
 
 .vault-meter span {
-  font-size: 10.5px;
+  font-size: 11px;
   text-transform: uppercase;
-  letter-spacing: 0.2em;
+  letter-spacing: 0.16em;
   color: var(--faint);
 }
 
 .vault-persistence {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
+  flex-wrap: wrap;
   gap: 14px;
   padding: 14px 18px;
   border: 1px solid rgba(0, 229, 255, 0.22);
@@ -7007,12 +7008,13 @@ select option {
 
 .vault-persistence > svg {
   flex: none;
+  margin-top: 2px;
   color: var(--cyan);
   filter: drop-shadow(0 0 10px rgba(0, 229, 255, 0.8));
 }
 
-.vault-persistence > div {
-  flex: 1;
+.vault-persistence-copy {
+  flex: 1 1 320px;
   min-width: 0;
 }
 
@@ -7021,12 +7023,118 @@ select option {
   font-size: 12.5px;
   letter-spacing: 0.14em;
   text-transform: uppercase;
+  color: var(--ice);
 }
 
 .vault-persistence p {
   font-size: 14px;
-  color: var(--faint);
+  color: var(--dim);
   margin-top: 2px;
+  line-height: 1.5;
+}
+
+.vault-persistence-error {
+  color: var(--coral) !important;
+}
+
+.vault-persistence-ok {
+  color: var(--lime) !important;
+}
+
+/* Encrypted vault transport: export blob + restore from another machine. */
+.vault-transport {
+  flex: 1 1 100%;
+  display: grid;
+  gap: 12px;
+  margin-top: 4px;
+  padding-top: 14px;
+  border-top: 1px dashed rgba(0, 229, 255, 0.18);
+}
+
+.vault-transport-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.vault-transport-hint {
+  font-size: 13.5px;
+  line-height: 1.55;
+  color: var(--dim);
+  margin: 0;
+}
+
+.vault-blob {
+  display: grid;
+  gap: 7px;
+}
+
+.vault-blob label {
+  font-size: 13px;
+  color: var(--dim);
+  line-height: 1.5;
+}
+
+.vault-blob code,
+.vault-transport-hint code {
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  color: var(--cyan-soft);
+  background: rgba(0, 229, 255, 0.1);
+  border: 1px solid rgba(0, 229, 255, 0.22);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+
+.vault-blob textarea {
+  width: 100%;
+  resize: vertical;
+  font-family: var(--font-mono);
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--ice);
+  background: var(--inset);
+  border: 1px solid rgba(0, 229, 255, 0.2);
+  border-radius: 9px;
+  padding: 10px 12px;
+  word-break: break-all;
+}
+
+.vault-blob textarea:focus {
+  outline: none;
+  border-color: var(--line-strong);
+  box-shadow: 0 0 0 3px rgba(0, 229, 255, 0.12);
+}
+
+.vault-blob textarea[readonly] {
+  color: var(--cyan-soft);
+}
+
+.vault-notice {
+  font-size: 13.5px;
+  line-height: 1.5;
+  padding: 9px 12px;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  margin: 0;
+}
+
+.vault-notice.ok {
+  color: var(--lime);
+  border-color: rgba(70, 240, 160, 0.35);
+  background: rgba(70, 240, 160, 0.08);
+}
+
+.vault-notice.warn {
+  color: var(--amber);
+  border-color: rgba(255, 176, 32, 0.35);
+  background: rgba(255, 176, 32, 0.08);
+}
+
+.vault-notice.error {
+  color: var(--coral);
+  border-color: rgba(255, 84, 112, 0.4);
+  background: rgba(255, 46, 77, 0.09);
 }
 
 .vault-persistence.ephemeral > svg {
@@ -7037,8 +7145,8 @@ select option {
 .vault-chip {
   flex: none;
   font-family: var(--font-mono);
-  font-size: 10px;
-  letter-spacing: 0.2em;
+  font-size: 11px;
+  letter-spacing: 0.16em;
   padding: 5px 11px;
   border-radius: 999px;
   border: 1px solid rgba(255, 176, 32, 0.5);
@@ -7064,7 +7172,7 @@ select option {
   font-family: var(--font-mono);
   font-size: 11px;
   font-weight: 400;
-  letter-spacing: 0.26em;
+  letter-spacing: 0.16em;
   text-transform: uppercase;
   color: var(--cyan-soft);
   margin: 18px 0 12px;
@@ -7173,7 +7281,7 @@ select option {
   align-items: center;
   gap: 6px;
   font-family: var(--font-mono);
-  font-size: 9.5px;
+  font-size: 11px;
   letter-spacing: 0.18em;
   padding: 4px 9px;
   border-radius: 999px;
@@ -7259,7 +7367,7 @@ select option {
 }
 
 .vault-card > footer code {
-  font-size: 10px;
+  font-size: 11px;
   color: var(--faint);
   letter-spacing: 0.12em;
   white-space: nowrap;
@@ -7277,7 +7385,7 @@ select option {
   align-items: center;
   gap: 5px;
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: 11px;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--cyan-soft);

@@ -40,6 +40,8 @@ export class Store {
     this.localDataFile = options.localDataFile;
     this.admin = options.admin;
     this.memoryOnly = this.localDataFile === ":memory:";
+    /** Identifies the backend for the console's durability report. */
+    this.kind = this.memoryOnly ? "memory" : "local-json";
     this.data = { users: [], events: [], audits: [], settings: {} };
     this.data.settings ??= {};
   }
