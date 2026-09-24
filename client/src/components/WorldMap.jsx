@@ -331,7 +331,19 @@ export default function WorldMap({
 
 function SatMarker() {
   const { fix, status } = useIss();
-  if (status !== "locked" || !fix) return null;
+  // Defence in depth: useIss now validates, but a bad coordinate here would
+  // throw inside Leaflet's Marker and blank the entire map.
+  const lat = Number(fix?.latitude);
+  const lng = Number(fix?.longitude);
+  if (
+    status !== "locked" ||
+    !fix ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    Math.abs(lat) > 90 ||
+    Math.abs(lng) > 180
+  )
+    return null;
   return (
     <Marker
       position={[fix.latitude, fix.longitude]}

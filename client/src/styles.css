@@ -7725,3 +7725,310 @@ select option {
     scroll-behavior: auto;
   }
 }
+
+/* ============================================================================
+   DESIGN SYSTEM v4 — depth, hierarchy and motion refinement
+   Additive layer: upgrades the existing HUD without changing layout geometry.
+   ========================================================================= */
+
+:root {
+  /* Layered elevation scale — real depth instead of one flat panel tone. */
+  --elev-1: rgba(8, 18, 33, 0.72);
+  --elev-2: rgba(11, 24, 42, 0.8);
+  --elev-3: rgba(15, 31, 53, 0.86);
+  --sheen: linear-gradient(
+    160deg,
+    rgba(180, 240, 255, 0.12) 0%,
+    rgba(180, 240, 255, 0.03) 38%,
+    transparent 62%
+  );
+  --hairline: 1px solid rgba(120, 220, 255, 0.13);
+  --hairline-bright: 1px solid rgba(120, 220, 255, 0.26);
+  --depth-sm: 0 2px 8px rgba(0, 0, 0, 0.32);
+  --depth-md:
+    0 8px 24px rgba(0, 0, 0, 0.42), 0 1px 0 rgba(170, 235, 255, 0.06) inset;
+  --depth-lg:
+    0 24px 64px rgba(0, 0, 0, 0.55), 0 1px 0 rgba(170, 235, 255, 0.08) inset;
+  --ring-focus: 0 0 0 2px rgba(1, 4, 10, 1), 0 0 0 4px rgba(0, 229, 255, 0.45);
+  --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Numeric data must not jitter as values change. */
+.metric-card strong,
+.panel strong,
+.stat-value,
+.ticker-time,
+.utc-clock,
+.vault-meter strong,
+td,
+th {
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+}
+
+/* --------------------------------------------------------------- surfaces */
+.panel,
+.source-panel,
+.trend-panel,
+.admin-panel,
+.ops-panel {
+  /* Required so elevation and stacking behave predictably. */
+  position: relative;
+  isolation: isolate;
+  /* Sheen is folded into `background` rather than a ::before pseudo-element:
+     .panel::before and .admin-panel::before already draw the cyan corner
+     brackets, and overriding them would have removed that detail. */
+  background:
+    var(--sheen), linear-gradient(158deg, var(--elev-2), var(--elev-1) 68%);
+  backdrop-filter: blur(14px) saturate(135%);
+  -webkit-backdrop-filter: blur(14px) saturate(135%);
+  border: var(--hairline);
+  box-shadow: var(--depth-md);
+  transition:
+    border-color var(--speed) var(--ease-out),
+    box-shadow 220ms var(--ease-out),
+    transform 220ms var(--ease-out);
+}
+
+.panel:hover,
+.ops-panel:hover,
+.admin-panel:hover {
+  border-color: rgba(120, 220, 255, 0.22);
+  box-shadow: var(--depth-lg);
+}
+
+/* ----------------------------------------------------------- metric cards */
+.metric-card {
+  position: relative;
+  background: linear-gradient(155deg, var(--elev-2), var(--elev-1) 70%);
+  border: var(--hairline);
+  box-shadow: var(--depth-sm);
+  overflow: hidden;
+  transition:
+    transform 240ms var(--ease-spring),
+    border-color var(--speed) var(--ease-out),
+    box-shadow 240ms var(--ease-out);
+}
+
+/* Keeps the original rotated-diamond motif and adds a corner bloom on hover. */
+.metric-card::after {
+  content: "";
+  position: absolute;
+  right: -30px;
+  top: -30px;
+  width: 110px;
+  height: 110px;
+  border: 1px solid var(--accent, var(--cyan));
+  background: radial-gradient(
+    circle at 30% 30%,
+    rgba(0, 229, 255, 0.3),
+    transparent 62%
+  );
+  opacity: 0.08;
+  transform: rotate(45deg);
+  transition: opacity 300ms var(--ease-out);
+  pointer-events: none;
+}
+
+.metric-card:hover {
+  transform: translateY(-3px);
+  border-color: rgba(120, 220, 255, 0.34);
+  box-shadow:
+    var(--depth-lg),
+    0 0 0 1px rgba(0, 229, 255, 0.1);
+}
+
+.metric-card:hover::after {
+  opacity: 0.5;
+}
+
+/* Big numbers are the point — give them weight and presence. */
+.metric-card strong {
+  font-family: var(--font-display);
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  background: linear-gradient(180deg, #ffffff, #bfe9ff 85%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* --------------------------------------------------------------- type ramp */
+.dashboard-intro h1,
+.admin-title h1,
+.ops-title h1 {
+  letter-spacing: -0.022em;
+  line-height: 1.04;
+  background: linear-gradient(178deg, #ffffff 12%, #a9dff5 92%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+.panel-heading h2,
+.panel h2 {
+  letter-spacing: -0.012em;
+}
+
+/* Muted labels recede so data reads first. */
+.panel-kicker,
+.eyebrow {
+  opacity: 0.92;
+}
+
+/* ------------------------------------------------------------------ chrome */
+.topbar,
+.side-nav {
+  background: rgba(4, 11, 22, 0.82);
+  backdrop-filter: blur(18px) saturate(140%);
+  -webkit-backdrop-filter: blur(18px) saturate(140%);
+}
+
+.topbar {
+  border-bottom: 1px solid rgba(120, 220, 255, 0.12);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.4);
+}
+
+.nav-item {
+  transition:
+    background var(--speed) var(--ease-out),
+    color var(--speed) var(--ease-out),
+    transform var(--speed) var(--ease-out);
+}
+
+.nav-item:hover {
+  transform: translateX(2px);
+}
+
+/* -------------------------------------------------------------- controls */
+.button,
+button {
+  transition:
+    background var(--speed) var(--ease-out),
+    border-color var(--speed) var(--ease-out),
+    box-shadow 200ms var(--ease-out),
+    transform 140ms var(--ease-out);
+}
+
+.button:active:not(:disabled) {
+  transform: translateY(1px) scale(0.985);
+}
+
+.button:focus-visible,
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+select:focus-visible {
+  outline: none;
+  box-shadow: var(--ring-focus);
+}
+
+.button.primary {
+  box-shadow:
+    0 6px 20px rgba(0, 229, 255, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.16) inset;
+}
+
+.button.primary:hover:not(:disabled) {
+  box-shadow:
+    0 10px 30px rgba(0, 229, 255, 0.34),
+    0 1px 0 rgba(255, 255, 255, 0.2) inset;
+}
+
+/* ----------------------------------------------------------- entrance motion */
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+.panel,
+.metric-card,
+.admin-panel,
+.ops-panel {
+  animation: rise-in 420ms var(--ease-out) both;
+}
+
+.metric-card:nth-child(2) {
+  animation-delay: 45ms;
+}
+.metric-card:nth-child(3) {
+  animation-delay: 90ms;
+}
+.metric-card:nth-child(4) {
+  animation-delay: 135ms;
+}
+.metric-card:nth-child(5) {
+  animation-delay: 180ms;
+}
+.metric-card:nth-child(6) {
+  animation-delay: 225ms;
+}
+
+/* A slow ambient drift keeps the grid feeling alive without distracting. */
+@keyframes ambient-drift {
+  0%,
+  100% {
+    background-position:
+      0 0,
+      0 0;
+  }
+  50% {
+    background-position:
+      22px 14px,
+      22px 14px;
+  }
+}
+
+.hud-grid {
+  animation: ambient-drift 46s ease-in-out infinite;
+}
+
+/* --------------------------------------------------------- scroll polish */
+::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+
+::-webkit-scrollbar-thumb {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 229, 255, 0.4),
+    rgba(124, 92, 255, 0.34)
+  );
+  border-radius: 999px;
+  border: 2px solid transparent;
+  background-clip: padding-box;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: linear-gradient(
+    180deg,
+    rgba(0, 229, 255, 0.62),
+    rgba(124, 92, 255, 0.5)
+  );
+  background-clip: padding-box;
+}
+
+/* Respect users who opt out of motion — keep the polish, drop the movement. */
+@media (prefers-reduced-motion: reduce) {
+  .panel,
+  .metric-card,
+  .admin-panel,
+  .ops-panel {
+    animation: none;
+  }
+  .hud-grid {
+    animation: none;
+  }
+  .metric-card:hover {
+    transform: none;
+  }
+}

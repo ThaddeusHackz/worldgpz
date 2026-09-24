@@ -95,7 +95,8 @@ function OpsHeader({
   return (
     <header className="ops-header">
       <Link to="/" className="ops-home" aria-label="Return to overview">
-        <Brand compact />
+        {/* bare: this Brand is already inside a Link — a nested <a> is invalid */}
+        <Brand compact bare />
       </Link>
       <span className="ops-product">GOD&apos;S EYE</span>
       <span className="ops-version">TAC-OPS v3.0</span>

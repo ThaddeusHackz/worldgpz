@@ -1,0 +1,1311 @@
+{
+  "/api/v1/dashboard": {
+    "success": true,
+    "data": {
+      "metrics": {
+        "activeSignals": 6,
+        "criticalSignals": 1,
+        "seismic24h": 0,
+        "sourcesOnline": 1,
+        "sourcesTotal": 8,
+        "riskScore": 53,
+        "highPriority": 3
+      },
+      "events": [
+        {
+          "id": "baseline-red-sea",
+          "title": "Red Sea shipping corridor remains under enhanced monitoring",
+          "summary": "Curated baseline watch item (not a live report): maritime traffic, route diversions, and port activity grouped into a single regional signal.",
+          "category": "infrastructure",
+          "severity": "high",
+          "status": "monitoring",
+          "region": "Middle East",
+          "country": "Regional",
+          "latitude": 16.4,
+          "longitude": 41.2,
+          "sourceName": "WORLDGPZ baseline watch",
+          "sourceUrl": "",
+          "publishedAt": "2026-09-24T19:59:33.942Z",
+          "createdAt": "2026-09-24T21:59:33.942Z",
+          "updatedAt": "2026-09-24T21:59:33.942Z"
+        },
+        {
+          "id": "baseline-eastern-europe",
+          "title": "Eastern Europe conflict indicators remain elevated",
+          "summary": "Curated baseline watch item (not a live report): conflict, humanitarian, and infrastructure indicators consolidated for the region.",
+          "category": "conflict",
+          "severity": "critical",
+          "status": "monitoring",
+          "region": "Europe",
+          "country": "Regional",
+          "latitude": 49.1,
+          "longitude": 32.2,
+          "sourceName": "WORLDGPZ baseline watch",
+          "sourceUrl": "",
+          "publishedAt": "2026-09-24T18:59:33.942Z",
+          "createdAt": "2026-09-24T21:59:33.942Z",
+          "updatedAt": "2026-09-24T21:59:33.942Z"
+        },
+        {
+          "id": "baseline-horn-africa",
+          "title": "Humanitarian access constraints tracked across the Horn of Africa",
+          "summary": "Curated baseline watch item (not a live report): access, displacement, and food-security signals tracked regionally.",
+          "category": "humanitarian",
+          "severity": "high",
+          "status": "watch",
+          "region": "Africa",
+          "country": "Regional",
+          "latitude": 8.9,
+          "longitude": 42.8,
+          "sourceName": "WORLDGPZ baseline watch",
+          "sourceUrl": "",
+          "publishedAt": "2026-09-24T16:59:33.942Z",
+          "createdAt": "2026-09-24T21:59:33.942Z",
+          "updatedAt": "2026-09-24T21:59:33.942Z"
+        },
+        {
+          "id": "baseline-pacific-weather",
+          "title": "Western Pacific severe-weather window active",
+          "summary": "Curated baseline watch item (not a live report): storm development and coastal exposure monitored via live weather providers.",
+          "category": "climate",
+          "severity": "medium",
+          "status": "watch",
+          "region": "Asia Pacific",
+          "country": "Regional",
+          "latitude": 18.2,
+          "longitude": 135.5,
+          "sourceName": "WORLDGPZ baseline watch",
+          "sourceUrl": "",
+          "publishedAt": "2026-09-24T14:59:33.942Z",
+          "createdAt": "2026-09-24T21:59:33.942Z",
+          "updatedAt": "2026-09-24T21:59:33.942Z"
+        },
+        {
+          "id": "baseline-supply-chain",
+          "title": "Global supply-chain pressure watch",
+          "summary": "Curated baseline watch item (not a live report): maritime chokepoints and logistics monitored for abnormal disruption.",
+          "category": "economy",
+          "severity": "medium",
+          "status": "monitoring",
+          "region": "Global",
+          "country": "Global",
+          "latitude": 1.3,
+          "longitude": 103.8,
+          "sourceName": "WORLDGPZ baseline watch",
+          "sourceUrl": "",
+          "publishedAt": "2026-09-24T12:59:33.942Z",
+          "createdAt": "2026-09-24T21:59:33.942Z",
+          "updatedAt": "2026-09-24T21:59:33.942Z"
+        },
+        {
+          "id": "baseline-cyber",
+          "title": "Critical-infrastructure cyber posture under observation",
+          "summary": "Curated baseline watch item (not a live report): publicly reported service disruptions correlated at a coarse level.",
+          "category": "cyber",
+          "severity": "medium",
+          "status": "watch",
+          "region": "Global",
+          "country": "Global",
+          "latitude": 50.1,
+          "longitude": 8.7,
+          "sourceName": "WORLDGPZ baseline watch",
+          "sourceUrl": "",
+          "publishedAt": "2026-09-24T09:59:33.942Z",
+          "createdAt": "2026-09-24T21:59:33.942Z",
+          "updatedAt": "2026-09-24T21:59:33.942Z"
+        }
+      ],
+      "news": [],
+      "sourceStatus": [
+        {
+          "id": "usgs",
+          "name": "USGS Earthquake Hazards",
+          "type": "Seismic",
+          "cadence": "5 min",
+          "coverage": "Global",
+          "status": "degraded",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z",
+          "message": "fetch failed"
+        },
+        {
+          "id": "open-meteo",
+          "name": "Open-Meteo",
+          "type": "Weather",
+          "cadence": "15 min",
+          "coverage": "Global",
+          "status": "degraded",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z",
+          "message": "fetch failed"
+        },
+        {
+          "id": "eonet",
+          "name": "NASA EONET",
+          "type": "Natural events",
+          "cadence": "15 min",
+          "coverage": "Global",
+          "status": "degraded",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z",
+          "message": "fetch failed"
+        },
+        {
+          "id": "reliefweb",
+          "name": "ReliefWeb",
+          "type": "Humanitarian",
+          "cadence": "15 min",
+          "coverage": "Global",
+          "status": "degraded",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z",
+          "message": "fetch failed"
+        },
+        {
+          "id": "worldgpz",
+          "name": "WORLDGPZ Curated Baseline",
+          "type": "Editorial",
+          "cadence": "Admin",
+          "coverage": "Global",
+          "status": "operational",
+          "latencyMs": 0
+        },
+        {
+          "id": "newsapi",
+          "name": "NewsAPI",
+          "type": "News",
+          "cadence": "15 min",
+          "coverage": "Global",
+          "status": "not-configured",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z"
+        },
+        {
+          "id": "gdelt",
+          "name": "GDELT 2.0 World News",
+          "type": "World news index",
+          "cadence": "15 min",
+          "coverage": "Global · 65 languages",
+          "status": "degraded",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z",
+          "message": "fetch failed"
+        },
+        {
+          "id": "swpc",
+          "name": "NOAA SWPC",
+          "type": "Space weather",
+          "cadence": "30 min",
+          "coverage": "Solar system",
+          "status": "degraded",
+          "latencyMs": 83,
+          "items": 0,
+          "checkedAt": "2026-09-24T21:59:34.040Z",
+          "message": "SWPC feeds unavailable"
+        }
+      ],
+      "riskBreakdown": [
+        {
+          "id": "security",
+          "label": "Security & conflict",
+          "count": 1,
+          "score": 78
+        },
+        {
+          "id": "natural",
+          "label": "Natural & seismic",
+          "count": 1,
+          "score": 40
+        },
+        {
+          "id": "human",
+          "label": "Humanitarian & civil",
+          "count": 1,
+          "score": 59
+        },
+        {
+          "id": "systems",
+          "label": "Systems & economy",
+          "count": 3,
+          "score": 50
+        }
+      ],
+      "space": null,
+      "trend": [
+        { "label": "00:00", "signals": 0, "priority": 0 },
+        { "label": "02:00", "signals": 0, "priority": 0 },
+        { "label": "04:00", "signals": 0, "priority": 0 },
+        { "label": "06:00", "signals": 0, "priority": 0 },
+        { "label": "08:00", "signals": 0, "priority": 0 },
+        { "label": "10:00", "signals": 1, "priority": 0 },
+        { "label": "12:00", "signals": 0, "priority": 0 },
+        { "label": "14:00", "signals": 1, "priority": 0 },
+        { "label": "16:00", "signals": 1, "priority": 0 },
+        { "label": "18:00", "signals": 1, "priority": 1 },
+        { "label": "20:00", "signals": 2, "priority": 2 },
+        { "label": "22:00", "signals": 0, "priority": 0 }
+      ],
+      "layers": [
+        {
+          "id": "conflict",
+          "label": "Conflict zones",
+          "group": "Security",
+          "color": "#ff765f",
+          "count": 1
+        },
+        {
+          "id": "humanitarian",
+          "label": "Humanitarian",
+          "group": "People",
+          "color": "#ffad4d",
+          "count": 1
+        },
+        {
+          "id": "civil",
+          "label": "Civil unrest",
+          "group": "People",
+          "color": "#ff8db7",
+          "count": 0
+        },
+        {
+          "id": "seismic",
+          "label": "Earthquakes",
+          "group": "Natural",
+          "color": "#f3d767",
+          "count": 0
+        },
+        {
+          "id": "climate",
+          "label": "Weather & climate",
+          "group": "Natural",
+          "color": "#65b6ff",
+          "count": 1
+        },
+        {
+          "id": "natural",
+          "label": "Natural events",
+          "group": "Natural",
+          "color": "#8ce66a",
+          "count": 0
+        },
+        {
+          "id": "infrastructure",
+          "label": "Infrastructure",
+          "group": "Systems",
+          "color": "#b495ff",
+          "count": 1
+        },
+        {
+          "id": "cyber",
+          "label": "Cyber posture",
+          "group": "Systems",
+          "color": "#5bd9ca",
+          "count": 1
+        },
+        {
+          "id": "economy",
+          "label": "Economic signals",
+          "group": "Markets",
+          "color": "#d7a4ff",
+          "count": 1
+        },
+        {
+          "id": "diplomacy",
+          "label": "Diplomacy",
+          "group": "Security",
+          "color": "#89a8ff",
+          "count": 0
+        },
+        {
+          "id": "health",
+          "label": "Health",
+          "group": "People",
+          "color": "#ff8db7",
+          "count": 0
+        }
+      ],
+      "regions": [
+        {
+          "region": "Europe",
+          "count": 1,
+          "score": 86,
+          "categories": ["conflict"]
+        },
+        {
+          "region": "Middle East",
+          "count": 1,
+          "score": 65,
+          "categories": ["infrastructure"]
+        },
+        {
+          "region": "Africa",
+          "count": 1,
+          "score": 65,
+          "categories": ["humanitarian"]
+        },
+        {
+          "region": "Global",
+          "count": 2,
+          "score": 46,
+          "categories": ["economy", "cyber"]
+        },
+        {
+          "region": "Asia Pacific",
+          "count": 1,
+          "score": 44,
+          "categories": ["climate"]
+        }
+      ],
+      "correlations": [
+        {
+          "id": "correlation-global",
+          "region": "Global",
+          "score": 46,
+          "signalCount": 2,
+          "categories": ["economy", "cyber"],
+          "statement": "2 independent signal categories are active in the same operational area."
+        }
+      ],
+      "generatedAt": "2026-09-24T21:59:34.040Z",
+      "mode": "live-plus-curated"
+    }
+  },
+  "/api/v1/events": {
+    "success": true,
+    "data": [
+      {
+        "id": "baseline-red-sea",
+        "title": "Red Sea shipping corridor remains under enhanced monitoring",
+        "summary": "Curated baseline watch item (not a live report): maritime traffic, route diversions, and port activity grouped into a single regional signal.",
+        "category": "infrastructure",
+        "severity": "high",
+        "status": "monitoring",
+        "region": "Middle East",
+        "country": "Regional",
+        "latitude": 16.4,
+        "longitude": 41.2,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T19:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-eastern-europe",
+        "title": "Eastern Europe conflict indicators remain elevated",
+        "summary": "Curated baseline watch item (not a live report): conflict, humanitarian, and infrastructure indicators consolidated for the region.",
+        "category": "conflict",
+        "severity": "critical",
+        "status": "monitoring",
+        "region": "Europe",
+        "country": "Regional",
+        "latitude": 49.1,
+        "longitude": 32.2,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T18:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-horn-africa",
+        "title": "Humanitarian access constraints tracked across the Horn of Africa",
+        "summary": "Curated baseline watch item (not a live report): access, displacement, and food-security signals tracked regionally.",
+        "category": "humanitarian",
+        "severity": "high",
+        "status": "watch",
+        "region": "Africa",
+        "country": "Regional",
+        "latitude": 8.9,
+        "longitude": 42.8,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T16:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-pacific-weather",
+        "title": "Western Pacific severe-weather window active",
+        "summary": "Curated baseline watch item (not a live report): storm development and coastal exposure monitored via live weather providers.",
+        "category": "climate",
+        "severity": "medium",
+        "status": "watch",
+        "region": "Asia Pacific",
+        "country": "Regional",
+        "latitude": 18.2,
+        "longitude": 135.5,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T14:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-supply-chain",
+        "title": "Global supply-chain pressure watch",
+        "summary": "Curated baseline watch item (not a live report): maritime chokepoints and logistics monitored for abnormal disruption.",
+        "category": "economy",
+        "severity": "medium",
+        "status": "monitoring",
+        "region": "Global",
+        "country": "Global",
+        "latitude": 1.3,
+        "longitude": 103.8,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T12:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-cyber",
+        "title": "Critical-infrastructure cyber posture under observation",
+        "summary": "Curated baseline watch item (not a live report): publicly reported service disruptions correlated at a coarse level.",
+        "category": "cyber",
+        "severity": "medium",
+        "status": "watch",
+        "region": "Global",
+        "country": "Global",
+        "latitude": 50.1,
+        "longitude": 8.7,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T09:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      }
+    ],
+    "meta": { "total": 6 }
+  },
+  "/api/v1/sources": {
+    "success": true,
+    "data": [
+      {
+        "id": "usgs",
+        "name": "USGS Earthquake Hazards",
+        "type": "Seismic",
+        "cadence": "5 min",
+        "coverage": "Global",
+        "status": "degraded",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z",
+        "message": "fetch failed"
+      },
+      {
+        "id": "open-meteo",
+        "name": "Open-Meteo",
+        "type": "Weather",
+        "cadence": "15 min",
+        "coverage": "Global",
+        "status": "degraded",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z",
+        "message": "fetch failed"
+      },
+      {
+        "id": "eonet",
+        "name": "NASA EONET",
+        "type": "Natural events",
+        "cadence": "15 min",
+        "coverage": "Global",
+        "status": "degraded",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z",
+        "message": "fetch failed"
+      },
+      {
+        "id": "reliefweb",
+        "name": "ReliefWeb",
+        "type": "Humanitarian",
+        "cadence": "15 min",
+        "coverage": "Global",
+        "status": "degraded",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z",
+        "message": "fetch failed"
+      },
+      {
+        "id": "worldgpz",
+        "name": "WORLDGPZ Curated Baseline",
+        "type": "Editorial",
+        "cadence": "Admin",
+        "coverage": "Global",
+        "status": "operational",
+        "latencyMs": 0
+      },
+      {
+        "id": "newsapi",
+        "name": "NewsAPI",
+        "type": "News",
+        "cadence": "15 min",
+        "coverage": "Global",
+        "status": "not-configured",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z"
+      },
+      {
+        "id": "gdelt",
+        "name": "GDELT 2.0 World News",
+        "type": "World news index",
+        "cadence": "15 min",
+        "coverage": "Global · 65 languages",
+        "status": "degraded",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z",
+        "message": "fetch failed"
+      },
+      {
+        "id": "swpc",
+        "name": "NOAA SWPC",
+        "type": "Space weather",
+        "cadence": "30 min",
+        "coverage": "Solar system",
+        "status": "degraded",
+        "latencyMs": 83,
+        "items": 0,
+        "checkedAt": "2026-09-24T21:59:34.040Z",
+        "message": "SWPC feeds unavailable"
+      }
+    ],
+    "generatedAt": "2026-09-24T21:59:34.040Z"
+  },
+  "/api/v1/providers": {
+    "success": true,
+    "data": [
+      {
+        "id": "windy-webcams",
+        "name": "Windy Webcams",
+        "group": "Webcams",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "finnhub",
+        "name": "Finnhub",
+        "group": "Markets",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "nasa-firms",
+        "name": "NASA FIRMS",
+        "group": "Fires",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "acled",
+        "name": "ACLED",
+        "group": "Conflict",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "eia",
+        "name": "EIA",
+        "group": "Energy",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "fred",
+        "name": "FRED",
+        "group": "Macro",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "cloudflare-radar",
+        "name": "Cloudflare Radar",
+        "group": "Outages",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "opensky",
+        "name": "OpenSky",
+        "group": "Flights",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "aisstream",
+        "name": "AISStream",
+        "group": "Ships",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "openweather",
+        "name": "OpenWeather",
+        "group": "Weather",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": "2026-09-24T22:03:12.109Z"
+      },
+      {
+        "id": "youtube",
+        "name": "YouTube Live",
+        "group": "Media",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": null
+      },
+      {
+        "id": "news",
+        "name": "NewsAPI",
+        "group": "News",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": null
+      },
+      {
+        "id": "ai",
+        "name": "AI Briefing",
+        "group": "Intelligence",
+        "configured": false,
+        "status": "not-configured",
+        "checkedAt": null,
+        "model": null
+      }
+    ],
+    "generatedAt": "2026-09-24T22:03:12.109Z"
+  },
+  "/api/v1/news": {
+    "success": true,
+    "data": [],
+    "generatedAt": "2026-09-24T21:59:34.040Z"
+  },
+  "/api/v1/media/channels": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "availability": "unchecked",
+      "channels": [
+        {
+          "id": "sky-news",
+          "name": "Sky News",
+          "handle": "@SkyNews",
+          "channelId": "UCoMdktPbSTixAyNGwb-UYkQ",
+          "region": "Europe",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@SkyNews"
+        },
+        {
+          "id": "dw-news",
+          "name": "DW News",
+          "handle": "@DWNews",
+          "channelId": "UCknLrEdhRCp1aegoMqRaCZg",
+          "region": "Europe",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@DWNews"
+        },
+        {
+          "id": "france-24",
+          "name": "France 24",
+          "handle": "@France24_en",
+          "channelId": "UCQfwfsi5VrQ8yKZ-UWmAEFg",
+          "region": "Europe",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@France24_en"
+        },
+        {
+          "id": "al-jazeera",
+          "name": "Al Jazeera English",
+          "handle": "@AlJazeeraEnglish",
+          "channelId": "UCNye-wNBqNL5ZzHSJj3l8Bg",
+          "region": "Middle East",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@AlJazeeraEnglish"
+        },
+        {
+          "id": "bloomberg",
+          "name": "Bloomberg Television",
+          "handle": "@markets",
+          "channelId": "UCIALMKvObZNtJ6AmdCLP7Lg",
+          "region": "Americas",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@markets"
+        },
+        {
+          "id": "euronews",
+          "name": "Euronews",
+          "handle": "@euronews",
+          "channelId": "UCSrZ3UV4jOidv8ppoVuvW9Q",
+          "region": "Europe",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@euronews"
+        },
+        {
+          "id": "nasa",
+          "name": "NASA",
+          "handle": "@NASA",
+          "channelId": "UCLA_DiR1FfKNvjuUpBHmylQ",
+          "region": "Space",
+          "status": "not-configured",
+          "videoId": null,
+          "channelUrl": "https://www.youtube.com/@NASA"
+        }
+      ],
+      "checkedAt": "2026-09-24T22:03:12.116Z",
+      "cacheSeconds": 10800
+    }
+  },
+  "/api/v1/pulse": {
+    "success": true,
+    "data": {
+      "alive": true,
+      "autonomous": true,
+      "startedAt": "2026-09-24T21:59:33.957Z",
+      "lastBeatAt": "2026-09-24T21:59:34.041Z",
+      "beatCount": 1,
+      "intervalSeconds": 270,
+      "feeds": {
+        "earthquakes": 0,
+        "weather": 0,
+        "naturalEvents": 0,
+        "worldNews": 0,
+        "reports": 0,
+        "liveChannels": 0
+      },
+      "lastError": null
+    },
+    "generatedAt": "2026-09-24T22:03:12.120Z"
+  },
+  "/api/v1/track": {
+    "success": true,
+    "data": {
+      "group": "visual",
+      "satellites": [],
+      "status": "degraded",
+      "error": "fetch failed",
+      "fetchedAt": null
+    },
+    "generatedAt": "2026-09-24T22:03:12.122Z"
+  },
+  "/api/v1/fires": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "NASA FIRMS",
+      "group": "Fires",
+      "checkedAt": "2026-09-24T22:03:12.125Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.125Z"
+  },
+  "/api/v1/conflicts": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "ACLED",
+      "group": "Conflict",
+      "checkedAt": "2026-09-24T22:03:12.128Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.128Z"
+  },
+  "/api/v1/weather": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "OpenWeather",
+      "group": "Weather",
+      "checkedAt": "2026-09-24T22:03:12.130Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.130Z"
+  },
+  "/api/v1/markets": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "Finnhub",
+      "group": "Markets",
+      "checkedAt": "2026-09-24T22:03:12.132Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.132Z"
+  },
+  "/api/v1/energy": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "EIA",
+      "group": "Energy",
+      "checkedAt": "2026-09-24T22:03:12.134Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.134Z"
+  },
+  "/api/v1/macro": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "FRED",
+      "group": "Macro",
+      "checkedAt": "2026-09-24T22:03:12.136Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.136Z"
+  },
+  "/api/v1/outages": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "Cloudflare Radar",
+      "group": "Outages",
+      "checkedAt": "2026-09-24T22:03:12.137Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.137Z"
+  },
+  "/api/v1/flights": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "OpenSky",
+      "group": "Flights",
+      "checkedAt": "2026-09-24T22:03:12.140Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.140Z"
+  },
+  "/api/v1/ships": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "AISStream",
+      "group": "Ships",
+      "checkedAt": "2026-09-24T22:03:12.143Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.143Z"
+  },
+  "/api/v1/webcams": {
+    "success": true,
+    "data": {
+      "configured": false,
+      "status": "not-configured",
+      "name": "Windy Webcams",
+      "group": "Webcams",
+      "checkedAt": "2026-09-24T22:03:12.145Z"
+    },
+    "generatedAt": "2026-09-24T22:03:12.145Z"
+  },
+  "/api/admin/overview": {
+    "success": true,
+    "data": {
+      "stats": {
+        "totalEvents": 6,
+        "criticalEvents": 1,
+        "highPriority": 3,
+        "monitoredRegions": 5,
+        "byCategory": {
+          "infrastructure": 1,
+          "conflict": 1,
+          "humanitarian": 1,
+          "climate": 1,
+          "economy": 1,
+          "cyber": 1
+        }
+      },
+      "audits": [
+        {
+          "id": "4636daa9-5e24-438d-b4f4-4df50049d308",
+          "actorEmail": "admin@worldgpz.local",
+          "action": "auth.login",
+          "entityType": "session",
+          "entityId": null,
+          "metadata": { "requestId": "bad4bc53-41be-4233-9b95-d761efc6cb65" },
+          "createdAt": "2026-09-24T22:03:12.029Z"
+        },
+        {
+          "id": "3c06bd57-f8ad-40e4-a9e9-d87dbc1f4baf",
+          "actorEmail": "admin@worldgpz.local",
+          "action": "auth.login",
+          "entityType": "session",
+          "entityId": null,
+          "metadata": { "requestId": "9c2bf48a-dac0-4ab9-a0e8-076b5c83ee25" },
+          "createdAt": "2026-09-24T22:03:02.110Z"
+        }
+      ]
+    }
+  },
+  "/api/admin/events": {
+    "success": true,
+    "data": [
+      {
+        "id": "baseline-red-sea",
+        "title": "Red Sea shipping corridor remains under enhanced monitoring",
+        "summary": "Curated baseline watch item (not a live report): maritime traffic, route diversions, and port activity grouped into a single regional signal.",
+        "category": "infrastructure",
+        "severity": "high",
+        "status": "monitoring",
+        "region": "Middle East",
+        "country": "Regional",
+        "latitude": 16.4,
+        "longitude": 41.2,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T19:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-eastern-europe",
+        "title": "Eastern Europe conflict indicators remain elevated",
+        "summary": "Curated baseline watch item (not a live report): conflict, humanitarian, and infrastructure indicators consolidated for the region.",
+        "category": "conflict",
+        "severity": "critical",
+        "status": "monitoring",
+        "region": "Europe",
+        "country": "Regional",
+        "latitude": 49.1,
+        "longitude": 32.2,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T18:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-horn-africa",
+        "title": "Humanitarian access constraints tracked across the Horn of Africa",
+        "summary": "Curated baseline watch item (not a live report): access, displacement, and food-security signals tracked regionally.",
+        "category": "humanitarian",
+        "severity": "high",
+        "status": "watch",
+        "region": "Africa",
+        "country": "Regional",
+        "latitude": 8.9,
+        "longitude": 42.8,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T16:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-pacific-weather",
+        "title": "Western Pacific severe-weather window active",
+        "summary": "Curated baseline watch item (not a live report): storm development and coastal exposure monitored via live weather providers.",
+        "category": "climate",
+        "severity": "medium",
+        "status": "watch",
+        "region": "Asia Pacific",
+        "country": "Regional",
+        "latitude": 18.2,
+        "longitude": 135.5,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T14:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-supply-chain",
+        "title": "Global supply-chain pressure watch",
+        "summary": "Curated baseline watch item (not a live report): maritime chokepoints and logistics monitored for abnormal disruption.",
+        "category": "economy",
+        "severity": "medium",
+        "status": "monitoring",
+        "region": "Global",
+        "country": "Global",
+        "latitude": 1.3,
+        "longitude": 103.8,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T12:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      },
+      {
+        "id": "baseline-cyber",
+        "title": "Critical-infrastructure cyber posture under observation",
+        "summary": "Curated baseline watch item (not a live report): publicly reported service disruptions correlated at a coarse level.",
+        "category": "cyber",
+        "severity": "medium",
+        "status": "watch",
+        "region": "Global",
+        "country": "Global",
+        "latitude": 50.1,
+        "longitude": 8.7,
+        "sourceName": "WORLDGPZ baseline watch",
+        "sourceUrl": "",
+        "publishedAt": "2026-09-24T09:59:33.942Z",
+        "createdAt": "2026-09-24T21:59:33.942Z",
+        "updatedAt": "2026-09-24T21:59:33.942Z"
+      }
+    ],
+    "meta": { "total": 6 }
+  },
+  "/api/admin/keys": {
+    "success": true,
+    "data": [
+      {
+        "id": "NEWS_API_KEY",
+        "label": "NewsAPI",
+        "group": "News & media",
+        "kind": "secret",
+        "hint": "newsapi.org top-headlines key",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "YOUTUBE_API_KEY",
+        "label": "YouTube Data API",
+        "group": "News & media",
+        "kind": "secret",
+        "hint": "Google Cloud key for live-channel discovery",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "OPENWEATHER_API_KEY",
+        "label": "OpenWeather",
+        "group": "News & media",
+        "kind": "secret",
+        "hint": "Current-weather watch points",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "AI_API_KEY",
+        "label": "AI provider key",
+        "group": "Intelligence",
+        "kind": "secret",
+        "hint": "OpenAI-compatible key for generated briefings",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "AI_BASE_URL",
+        "label": "AI base URL",
+        "group": "Intelligence",
+        "kind": "text",
+        "hint": "OpenAI-compatible endpoint root",
+        "configured": true,
+        "source": "environment",
+        "masked": null,
+        "value": "https://api.openai.com/v1"
+      },
+      {
+        "id": "AI_MODEL",
+        "label": "AI model",
+        "group": "Intelligence",
+        "kind": "text",
+        "hint": "Model id sent to the AI endpoint",
+        "configured": true,
+        "source": "environment",
+        "masked": null,
+        "value": "gpt-4o-mini"
+      },
+      {
+        "id": "NASA_FIRMS_API_KEY",
+        "label": "NASA FIRMS",
+        "group": "Earth & security",
+        "kind": "secret",
+        "hint": "Satellite fire/thermal detections (MAP key)",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "ACLED_ACCESS_TOKEN",
+        "label": "ACLED token",
+        "group": "Earth & security",
+        "kind": "secret",
+        "hint": "Conflict and protest event feed",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "ACLED_EMAIL",
+        "label": "ACLED email",
+        "group": "Earth & security",
+        "kind": "text",
+        "hint": "Alternative to token auth",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "ACLED_PASSWORD",
+        "label": "ACLED password",
+        "group": "Earth & security",
+        "kind": "secret",
+        "hint": "Alternative to token auth",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "WINDY_API_KEY",
+        "label": "Windy Webcams",
+        "group": "Earth & security",
+        "kind": "secret",
+        "hint": "Global webcam network",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "FINNHUB_API_KEY",
+        "label": "Finnhub",
+        "group": "Markets & economy",
+        "kind": "secret",
+        "hint": "Equities, indices, and crypto quotes",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "EIA_API_KEY",
+        "label": "U.S. EIA",
+        "group": "Markets & economy",
+        "kind": "secret",
+        "hint": "Oil, petroleum, and natural-gas prices",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "FRED_API_KEY",
+        "label": "FRED",
+        "group": "Markets & economy",
+        "kind": "secret",
+        "hint": "Interest rates and macro indicators",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "AISSTREAM_API_KEY",
+        "label": "AISStream",
+        "group": "Logistics",
+        "kind": "secret",
+        "hint": "Live ship positions",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "OPENSKY_CLIENT_ID",
+        "label": "OpenSky client ID",
+        "group": "Logistics",
+        "kind": "text",
+        "hint": "Aircraft tracking credentials",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "OPENSKY_CLIENT_SECRET",
+        "label": "OpenSky client secret",
+        "group": "Logistics",
+        "kind": "secret",
+        "hint": "Aircraft tracking credentials",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      },
+      {
+        "id": "CLOUDFLARE_API_TOKEN",
+        "label": "Cloudflare Radar",
+        "group": "Systems",
+        "kind": "secret",
+        "hint": "Internet outages and traffic anomalies",
+        "configured": false,
+        "source": "unset",
+        "masked": null,
+        "value": null
+      }
+    ],
+    "meta": {
+      "persistence": {
+        "tier": "ephemeral",
+        "backend": "local-json",
+        "survivesRedeploy": false,
+        "survivesMachineChange": false,
+        "note": "This runtime has no durable store. Export the encrypted vault and set WORLDGPZ_VAULT (or connect MongoDB) so keys survive redeploys."
+      },
+      "durable": false,
+      "loadedAt": "2026-09-24T21:59:33.944Z",
+      "seededFromEnv": 0,
+      "envSeedError": null
+    }
+  },
+  "/api/admin/audit": {
+    "success": true,
+    "data": [
+      {
+        "id": "4636daa9-5e24-438d-b4f4-4df50049d308",
+        "actorEmail": "admin@worldgpz.local",
+        "action": "auth.login",
+        "entityType": "session",
+        "entityId": null,
+        "metadata": { "requestId": "bad4bc53-41be-4233-9b95-d761efc6cb65" },
+        "createdAt": "2026-09-24T22:03:12.029Z"
+      },
+      {
+        "id": "3c06bd57-f8ad-40e4-a9e9-d87dbc1f4baf",
+        "actorEmail": "admin@worldgpz.local",
+        "action": "auth.login",
+        "entityType": "session",
+        "entityId": null,
+        "metadata": { "requestId": "9c2bf48a-dac0-4ab9-a0e8-076b5c83ee25" },
+        "createdAt": "2026-09-24T22:03:02.110Z"
+      }
+    ]
+  }
+}

@@ -18,6 +18,13 @@ export function relativeTime(value, now = Date.now()) {
 }
 
 export function formatUtc(value) {
+  // Guard like relativeTime does: Intl throws RangeError("Invalid time value")
+  // on a malformed timestamp, which would take down the whole page for one bad
+  // field. null/"" are rejected explicitly because `new Date(null)` is epoch
+  // and would otherwise render a meaningless "Jan 01, 00:00".
+  if (value === null || value === undefined || value === "") return "—";
+  const date = new Date(value);
+  if (!Number.isFinite(date.getTime())) return "—";
   return new Intl.DateTimeFormat("en", {
     month: "short",
     day: "2-digit",
@@ -25,7 +32,7 @@ export function formatUtc(value) {
     minute: "2-digit",
     hour12: false,
     timeZone: "UTC",
-  }).format(new Date(value));
+  }).format(date);
 }
 
 export function titleCase(value = "") {
