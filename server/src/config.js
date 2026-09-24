@@ -38,8 +38,8 @@ export const config = {
     email: (process.env.ADMIN_EMAIL || "admin@worldgpz.local").toLowerCase(),
     password: process.env.ADMIN_PASSWORD || "WorldGPZ!Local#2026",
   },
-  databaseUrl: process.env.DATABASE_URL || "",
-  databaseSsl: process.env.DATABASE_SSL === "true",
+  mongodbUri: process.env.MONGODB_URI || "",
+  mongodbDb: process.env.MONGODB_DB || "worldgpz",
   localDataFile:
     process.env.LOCAL_DATA_FILE || path.join(root, "server/data/worldgpz.json"),
   sourceCacheSeconds: numberFromEnv(process.env.SOURCE_CACHE_SECONDS, 300),
@@ -110,8 +110,6 @@ export function validateProductionConfig() {
   }
   if (!config.admin.email.includes("@"))
     failures.push("ADMIN_EMAIL must be a valid email address");
-  if (!config.databaseUrl)
-    failures.push("DATABASE_URL is required in production");
 
   if (failures.length) {
     throw new Error(

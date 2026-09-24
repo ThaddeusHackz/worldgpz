@@ -1,6 +1,23 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="18" fill="#0a1512"/>
-  <circle cx="32" cy="32" r="20" fill="none" stroke="#a4f85e" stroke-width="3"/>
-  <path d="M12 32h40M32 12c7 7 10 13 10 20S39 45 32 52M32 12c-7 7-10 13-10 20s3 13 10 20" fill="none" stroke="#a4f85e" stroke-width="2"/>
-  <circle cx="46" cy="21" r="5" fill="#ff765f" stroke="#07100e" stroke-width="3"/>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="45%" r="60%">
+      <stop offset="0%" stop-color="#00e5ff" stop-opacity="0.55"/>
+      <stop offset="70%" stop-color="#005a86" stop-opacity="0.25"/>
+      <stop offset="100%" stop-color="#020409" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="64" height="64" rx="12" fill="#020409"/>
+  <rect width="64" height="64" rx="12" fill="url(#g)"/>
+  <g transform="rotate(45 32 32)">
+    <rect x="12" y="12" width="40" height="40" fill="none" stroke="#00e5ff" stroke-width="2.4"/>
+  </g>
+  <circle cx="32" cy="32" r="14" fill="none" stroke="#00e5ff" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.85"/>
+  <circle cx="32" cy="32" r="5.4" fill="#00e5ff"/>
+  <circle cx="32" cy="32" r="2.2" fill="#eaffff"/>
+  <g stroke="#00e5ff" stroke-width="2" opacity="0.9">
+    <line x1="4" y1="32" x2="12" y2="32"/>
+    <line x1="52" y1="32" x2="60" y2="32"/>
+    <line x1="32" y1="4" x2="32" y2="12"/>
+    <line x1="32" y1="52" x2="32" y2="60"/>
+  </g>
 </svg>

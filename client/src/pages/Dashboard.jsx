@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import {
   Activity,
@@ -8,6 +8,7 @@ import {
   ChevronRight,
   CircleGauge,
   Clock3,
+  Crosshair,
   Database,
   ExternalLink,
   Filter,
@@ -19,9 +20,11 @@ import {
   Menu,
   Radio,
   RefreshCw,
+  Radar,
   Search,
   ShieldCheck,
   Sparkles,
+  TerminalSquare,
   TriangleAlert,
   X,
   Zap,
@@ -44,10 +47,15 @@ import {
 } from "../lib/format.js";
 import { Brand } from "../components/Brand.jsx";
 import WorldMap from "../components/WorldMap.jsx";
+import OrbitalGlobe from "../components/OrbitalGlobe.jsx";
+import { useLiveStream } from "../lib/useLiveStream.js";
+import { useTrack } from "../lib/useTrack.js";
+import { useDirectUplink } from "../lib/useDirectUplink.js";
 
 const categoryOptions = [
   "all",
   "conflict",
+  "civil",
   "seismic",
   "climate",
   "humanitarian",
@@ -67,7 +75,7 @@ const metricConfig = [
   },
   {
     key: "highPriority",
-    label: "High priority",
+    label: "Priority targets",
     icon: TriangleAlert,
     accent: "coral",
     note: "Critical and high",
@@ -81,12 +89,34 @@ const metricConfig = [
   },
   {
     key: "sourcesOnline",
-    label: "Sources online",
+    label: "Uplinks online",
     icon: Database,
     accent: "blue",
     note: "Operational now",
   },
 ];
+
+/** Animated numeric counter for HUD readouts. */
+function useCountUp(target, duration = 700) {
+  const [value, setValue] = useState(target || 0);
+  const previous = useRef(target || 0);
+  useEffect(() => {
+    const from = previous.current;
+    const to = target || 0;
+    previous.current = to;
+    if (from === to) return undefined;
+    let frame;
+    const startedAt = performance.now();
+    const tick = (now) => {
+      const t = Math.min(1, (now - startedAt) / duration);
+      setValue(Math.round(from + (to - from) * (1 - (1 - t) ** 3)));
+      if (t < 1) frame = requestAnimationFrame(tick);
+    };
+    frame = requestAnimationFrame(tick);
+    return () => cancelAnimationFrame(frame);
+  }, [target, duration]);
+  return value;
+}
 
 function Navigation({ open, onClose }) {
   return (
@@ -112,11 +142,11 @@ function Navigation({ open, onClose }) {
         <nav aria-label="Dashboard sections">
           <a className="nav-item active" href="#overview" aria-label="Overview">
             <LayoutDashboard size={19} />
-            <span>Overview</span>
+            <span>Command</span>
           </a>
           <a className="nav-item" href="#map" aria-label="Live map">
-            <MapIcon size={19} />
-            <span>Live map</span>
+            <Globe2 size={19} />
+            <span>Acquisition</span>
           </a>
           <a className="nav-item" href="#signals" aria-label="Signals">
             <Zap size={19} />
@@ -124,7 +154,7 @@ function Navigation({ open, onClose }) {
           </a>
           <a className="nav-item" href="#sources" aria-label="Sources">
             <Database size={19} />
-            <span>Sources</span>
+            <span>Uplinks</span>
           </a>
           <Link
             className="nav-item"
@@ -132,7 +162,7 @@ function Navigation({ open, onClose }) {
             aria-label="Operations mode"
           >
             <CircleGauge size={19} />
-            <span>Operations</span>
+            <span>Tactical ops</span>
           </Link>
         </nav>
         <div className="side-nav-bottom">
@@ -142,10 +172,10 @@ function Navigation({ open, onClose }) {
             aria-label="Admin console"
           >
             <LockKeyhole size={19} />
-            <span>Admin</span>
+            <span>Restricted</span>
           </Link>
           <div className="network-pulse" title="Public network online">
-            <i /> <span>Network online</span>
+            <i /> <span>Grid online</span>
           </div>
         </div>
       </aside>
@@ -154,7 +184,7 @@ function Navigation({ open, onClose }) {
 }
 
 function Topbar({ query, setQuery, generatedAt, onMenu }) {
-  const [clock, setClock] = useState(new Date());
+  const [clock, setClock] = useState(() => new Date());
   useEffect(() => {
     const interval = setInterval(() => setClock(new Date()), 1000);
     return () => clearInterval(interval);
@@ -163,7 +193,7 @@ function Topbar({ query, setQuery, generatedAt, onMenu }) {
   return (
     <header className="topbar">
       <button
-        className="mobile-menu"
+        className="mobile-menu icon-button"
         onClick={onMenu}
         aria-label="Open navigation"
       >
@@ -175,7 +205,7 @@ function Topbar({ query, setQuery, generatedAt, onMenu }) {
         <input
           value={query}
           onChange={(event) => setQuery(event.target.value)}
-          placeholder="Search regions, categories, signals…"
+          placeholder="Search targets, regions, categories…"
           aria-label="Search all signals"
         />
         <kbd>/</kbd>
@@ -189,7 +219,7 @@ function Topbar({ query, setQuery, generatedAt, onMenu }) {
           <Bell size={18} />
           <i />
         </button>
-        <div className="source-avatar">WG</div>
+        <div className="source-avatar">GE</div>
       </div>
       {generatedAt && (
         <div className="sync-line" style={{ "--sync": "100%" }} />
@@ -200,10 +230,15 @@ function Topbar({ query, setQuery, generatedAt, onMenu }) {
 
 function MetricCard({ config, metrics }) {
   const Icon = config.icon;
+  const raw = useCountUp(metrics[config.key]);
   const value =
     config.key === "sourcesOnline"
-      ? `${metrics.sourcesOnline}/${metrics.sourcesTotal}`
-      : compactNumber(metrics[config.key]);
+      ? `${metrics.sourcesOnline ?? 0}/${metrics.sourcesTotal ?? 0}`
+      : config.key === "activeSignals" ||
+          config.key === "highPriority" ||
+          config.key === "seismic24h"
+        ? raw.toLocaleString("en")
+        : compactNumber(metrics[config.key]);
   return (
     <article className={`metric-card accent-${config.accent}`}>
       <div className="metric-icon">
@@ -249,6 +284,122 @@ function SignalRow({ event, onSelect, selected }) {
   );
 }
 
+/** Cinematic intercept log — typed signal acquisitions from the live grid. */
+function InterceptConsole({ events, systemLines }) {
+  const lines = useMemo(() => {
+    const stamp = (value) => new Date(value).toISOString().slice(11, 19);
+    const eventLines = events.slice(0, 6).map((event) => ({
+      time: stamp(event.publishedAt),
+      lvl:
+        event.severity === "critical"
+          ? "crit"
+          : event.severity === "high"
+            ? "warn"
+            : "info",
+      text: `${titleCase(event.category).toUpperCase()} ▸ ${event.title}`,
+    }));
+    return [...systemLines, ...eventLines].slice(0, 9);
+  }, [events, systemLines]);
+
+  return (
+    <section className="intercept-feed" aria-label="Live intercept console">
+      <div className="intercept-head">
+        <span className="led" />
+        <TerminalSquare size={13} /> Intercept console
+        <span>OPEN-SOURCE INTAKE</span>
+      </div>
+      <div className="intercept-body">
+        {lines.map((line, index) => (
+          <div
+            className="intercept-line"
+            key={`${line.time}-${line.text}-${index}`}
+            style={{ animationDelay: `${index * 90}ms` }}
+          >
+            <span className="t">{line.time}Z</span>
+            <span className={`lvl ${line.lvl}`}>
+              {line.lvl === "crit" ? "!!" : line.lvl === "warn" ? " ! " : "▸▸"}
+            </span>
+            <span className="msg">{line.text}</span>
+          </div>
+        ))}
+        <div className="intercept-line" aria-hidden="true">
+          <span className="t">{new Date().toISOString().slice(11, 19)}Z</span>
+          <span className="lvl info">▸▸</span>
+          <span className="msg">awaiting next intercept </span>
+          <span className="intercept-caret" />
+        </div>
+      </div>
+    </section>
+  );
+}
+
+/** Bottom-of-screen live broadcast ticker. */
+function Ticker({ events, news }) {
+  const items = useMemo(() => {
+    const merged = [
+      ...events.slice(0, 14).map((event) => ({
+        id: event.id,
+        sev: event.severity,
+        tag: titleCase(event.category).toUpperCase(),
+        title: event.title,
+        url: event.sourceUrl,
+        time: formatUtc(event.publishedAt),
+      })),
+      ...(news || []).slice(0, 6).map((item) => ({
+        id: item.id,
+        sev: "info",
+        tag: "REPORT",
+        title: item.title,
+        url: item.sourceUrl,
+        time: formatUtc(item.publishedAt),
+      })),
+    ];
+    return merged.length ? merged : [];
+  }, [events, news]);
+
+  if (!items.length) return null;
+  const sequence = [...items, ...items];
+
+  return (
+    <div className="ticker" role="region" aria-label="Live signal ticker">
+      <span className="ticker-tag">
+        <i /> LIVE GRID
+      </span>
+      <div className="ticker-viewport">
+        <div className="ticker-track">
+          {sequence.map((item, index) => {
+            const body = (
+              <>
+                <em>{item.tag}</em>
+                <strong>{item.title}</strong>
+                <span className="ticker-time">{item.time}Z</span>
+              </>
+            );
+            return item.url ? (
+              <a
+                className={`ticker-item ${item.severityClass || ""}`}
+                key={`${item.id}-${index}`}
+                href={item.url}
+                target="_blank"
+                rel="noreferrer"
+              >
+                {body}
+              </a>
+            ) : (
+              <span
+                className={`ticker-item ${item.sev === "critical" ? "critical" : item.sev === "high" ? "high" : ""}`}
+                key={`${item.id}-${index}`}
+              >
+                {body}
+              </span>
+            );
+          })}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function IntelligenceBrief({ events }) {
   const [brief, setBrief] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -270,13 +421,13 @@ function IntelligenceBrief({ events }) {
   }
 
   return (
-    <section className="intel-card">
+    <section className="intel-card panel">
       <div className="panel-heading">
         <div>
           <span className="panel-kicker">
             <Sparkles size={13} /> Intelligence brief
           </span>
-          <h2>{brief?.headline || "Analyst-ready synthesis"}</h2>
+          <h2>{brief?.headline || "Threat synthesis"}</h2>
         </div>
         <span className="ai-chip">
           <Bot size={13} /> AI-assisted
@@ -288,8 +439,8 @@ function IntelligenceBrief({ events }) {
             <CircleGauge size={28} />
           </div>
           <p>
-            Generate a source-grounded summary of the {events.length} signals
-            currently in view.
+            Generate a source-grounded synthesis of the {events.length} signals
+            currently inside the grid.
           </p>
           <button
             className="button primary full"
@@ -347,7 +498,7 @@ function SourceGrid({ sources }) {
     <section className="panel source-panel" id="sources">
       <div className="panel-heading inline">
         <div>
-          <span className="panel-kicker">Provider mesh</span>
+          <span className="panel-kicker">Uplink mesh</span>
           <h2>Source health</h2>
         </div>
         <span className="verified-label">
@@ -385,6 +536,123 @@ export default function Dashboard() {
   const [severity, setSeverity] = useState("all");
   const [focusedEvent, setFocusedEvent] = useState(null);
   const [navOpen, setNavOpen] = useState(false);
+  const [scanning, setScanning] = useState(false);
+  const [viewMode, setViewMode] = useState("grid");
+  const [pulse, setPulse] = useState(null);
+  const [toasts, setToasts] = useState([]);
+  const { fixes: satellites } = useTrack();
+  const uplink = useDirectUplink();
+
+  /**
+   * Multi-path merge: browser-acquired events (DIRECT) override relayed
+   * copies of the same signal; server-curated baselines are always kept.
+   * Metrics are then recomputed from the merged stream — the numbers on
+   * screen always describe the events actually displayed.
+   */
+  const merged = useMemo(() => {
+    if (!dashboard) return uplink.events;
+    const direct = new Map(uplink.events.map((event) => [event.id, event]));
+    const out = [];
+    for (const event of dashboard.events) {
+      out.push(direct.get(event.id) || event);
+      direct.delete(event.id);
+    }
+    return [...out, ...direct.values()].sort(
+      (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt),
+    );
+  }, [dashboard, uplink.events]);
+
+  const liveMetrics = useMemo(() => {
+    const critical = merged.filter(
+      (event) => event.severity === "critical",
+    ).length;
+    const high = merged.filter((event) => event.severity === "high").length;
+    const weight = merged.reduce(
+      (sum, event) =>
+        sum + { critical: 4, high: 3, medium: 2, low: 1 }[event.severity] * 1,
+      0,
+    );
+    const serverStatus = dashboard?.sourceStatus || [];
+    const sourceStatuses = [
+      ...serverStatus.map((source) => source.status),
+      ...Object.values(uplink.state),
+    ];
+    const online = sourceStatuses.filter((status) =>
+      ["operational", "direct"].includes(status),
+    ).length;
+    return {
+      activeSignals: merged.length,
+      highPriority: critical + high,
+      criticalSignals: critical,
+      seismic24h:
+        uplink.state.usgs === "direct"
+          ? merged.filter((event) => event.sourceName === "USGS").length
+          : (dashboard?.metrics.seismic24h ?? 0),
+      sourcesOnline: online,
+      sourcesTotal: sourceStatuses.length,
+      riskScore: Math.min(
+        99,
+        Math.max(
+          18,
+          Math.round((weight / Math.max(merged.length, 1)) * 19 + critical * 2),
+        ),
+      ),
+    };
+  }, [merged, dashboard, uplink.state]);
+
+  const pushToasts = (signals) => {
+    const items = signals.slice(0, 3).map((signal) => ({
+      key: `${signal.id}-${Date.now()}`,
+      title: signal.title,
+      source: signal.sourceName,
+      severity: signal.severity || "medium",
+    }));
+    setToasts((current) => [...items, ...current].slice(0, 3));
+    setTimeout(() => {
+      setToasts((current) =>
+        current.filter(
+          (toast) => !items.some((item) => item.key === toast.key),
+        ),
+      );
+    }, 9_000);
+  };
+
+  const refreshTimer = useRef(null);
+  useLiveStream({
+    onSignal: (signals) => {
+      if (Array.isArray(signals) && signals.length) {
+        pushToasts(signals);
+        pushSystemLine(
+          `LIVE INTERCEPT ▸ ${signals[0].title.slice(0, 70).toUpperCase()}`,
+          signals[0].severity === "critical" ? "crit" : "info",
+        );
+        clearTimeout(refreshTimer.current);
+        refreshTimer.current = setTimeout(() => load(true), 4_000);
+      }
+    },
+    onPulse: (view) => setPulse(view),
+  });
+  const [systemLines, setSystemLines] = useState([
+    {
+      time: new Date().toISOString().slice(11, 19),
+      lvl: "info",
+      text: "GOD'S EYE GRID LINK ESTABLISHED",
+    },
+  ]);
+
+  const pushSystemLine = (text, lvl = "info") => {
+    const line = {
+      time: new Date().toISOString().slice(11, 19),
+      lvl,
+      text,
+    };
+    setSystemLines((current) => [...current.slice(-2), line]);
+    setTimeout(
+      () =>
+        setSystemLines((current) => current.filter((item) => item !== line)),
+      12_000,
+    );
+  };
 
   async function load(silent = false) {
     if (!silent) setRefreshing(true);
@@ -392,6 +660,7 @@ export default function Dashboard() {
     try {
       const response = await api("/api/v1/dashboard");
       setDashboard(response.data);
+      if (silent) pushSystemLine("GRID SYNC COMPLETE — ALL FEEDS NOMINAL");
     } catch (requestError) {
       setError(requestError.message);
     } finally {
@@ -403,6 +672,45 @@ export default function Dashboard() {
     load();
     const interval = setInterval(() => load(true), 5 * 60 * 1000);
     return () => clearInterval(interval);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // Autonomous heartbeat — the grid breathes on its own.
+  const targetCount = useRef(0);
+  const scanningRef = useRef(false);
+  useEffect(() => {
+    scanningRef.current = scanning;
+  }, [scanning]);
+  useEffect(() => {
+    let alive = true;
+    const loadPulse = () =>
+      api("/api/v1/pulse")
+        .then((response) => alive && setPulse(response.data))
+        .catch(() => undefined);
+    loadPulse();
+    const pulseInterval = setInterval(loadPulse, 60_000);
+    const sweepInterval = setInterval(
+      () => {
+        if (scanningRef.current || document.hidden) return;
+        setScanning(true);
+        pushSystemLine("AUTONOMOUS SWEEP ENGAGED — SECTOR MESH CRAWL", "warn");
+        setTimeout(
+          () =>
+            pushSystemLine(
+              `AUTONOMOUS SWEEP COMPLETE — ${targetCount.current} TARGETS TRACKED`,
+            ),
+          5_600,
+        );
+        setTimeout(() => setScanning(false), 6_200);
+      },
+      4 * 60 * 1000,
+    );
+    return () => {
+      alive = false;
+      clearInterval(pulseInterval);
+      clearInterval(sweepInterval);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   useEffect(() => {
@@ -420,9 +728,9 @@ export default function Dashboard() {
   }, []);
 
   const filteredEvents = useMemo(() => {
-    if (!dashboard) return [];
+    if (!merged.length) return [];
     const needle = query.trim().toLowerCase();
-    return dashboard.events.filter(
+    return merged.filter(
       (event) =>
         (category === "all" || event.category === category) &&
         (severity === "all" || event.severity === severity) &&
@@ -431,14 +739,30 @@ export default function Dashboard() {
             .toLowerCase()
             .includes(needle)),
     );
-  }, [dashboard, query, category, severity]);
+  }, [merged, query, category, severity]);
+
+  targetCount.current = filteredEvents.length;
+
+  function runGlobalScan() {
+    if (scanning) return;
+    setScanning(true);
+    pushSystemLine("MANUAL GLOBAL SWEEP — SCANNING SECTOR MESH", "warn");
+    setTimeout(
+      () =>
+        pushSystemLine(
+          `SWEEP COMPLETE — ${filteredEvents.length} TARGETS TRACKED`,
+        ),
+      5_600,
+    );
+    setTimeout(() => setScanning(false), 6_200);
+  }
 
   if (!dashboard && error) {
     return (
       <main className="fatal-state">
         <Brand />
         <TriangleAlert size={38} />
-        <h1>Unable to establish the data link</h1>
+        <h1>Uplink to the grid failed</h1>
         <p>{error}</p>
         <button className="button primary" onClick={() => load()}>
           <RefreshCw size={16} /> Retry connection
@@ -449,6 +773,7 @@ export default function Dashboard() {
 
   return (
     <div className="app-frame">
+      <div className="hud-grid" aria-hidden="true" />
       <Navigation open={navOpen} onClose={() => setNavOpen(false)} />
       <div className="app-workspace">
         <Topbar
@@ -461,34 +786,59 @@ export default function Dashboard() {
           <section className="dashboard-intro">
             <div>
               <span className="eyebrow">
-                <i /> Global situation room
+                <i /> God&apos;s eye · global situation grid
               </span>
               <h1>
-                See the signal.
+                Every signal.
                 <br />
-                <em>Understand the world.</em>
+                <em>One eye on the world.</em>
               </h1>
               <p>
-                Source-aware monitoring for high-impact seismic, weather,
-                humanitarian, infrastructure, and geopolitical events.
+                Live geospatial surveillance of seismic, weather, humanitarian,
+                infrastructure, and geopolitical events — acquired from public
+                satellites and ground sensors, refreshed every five minutes.
               </p>
             </div>
             <div className="intro-actions">
+              <div
+                className="pulse-chip"
+                title={
+                  pulse?.lastBeatAt
+                    ? `Heartbeat ${pulse.beatCount} · last beat ${pulse.lastBeatAt}`
+                    : "Autonomous grid heartbeat"
+                }
+              >
+                <i /> Autonomous grid
+                <em>
+                  {pulse?.beatCount ? `HB ${pulse.beatCount}` : "LINKING"}
+                </em>
+                <u>{pulse?.beatCount ? "STREAM LIVE" : "…"}</u>
+              </div>
               <div className="last-sync">
-                <span>Last synchronized</span>
+                <span>Last grid sync</span>
                 <strong>
-                  {dashboard ? formatUtc(dashboard.generatedAt) : "Connecting…"}{" "}
+                  {dashboard ? formatUtc(dashboard.generatedAt) : "LINKING…"}{" "}
                   UTC
                 </strong>
               </div>
-              <button
-                className="button secondary"
-                onClick={() => load()}
-                disabled={refreshing}
-              >
-                <RefreshCw className={refreshing ? "spin" : ""} size={15} />{" "}
-                Refresh
-              </button>
+              <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                <button
+                  className="button secondary"
+                  onClick={runGlobalScan}
+                  disabled={scanning}
+                >
+                  <Radar className={scanning ? "spin" : ""} size={15} />
+                  {scanning ? "Sweeping…" : "Global scan"}
+                </button>
+                <button
+                  className="button secondary"
+                  onClick={() => load()}
+                  disabled={refreshing}
+                >
+                  <RefreshCw className={refreshing ? "spin" : ""} size={15} />{" "}
+                  Refresh
+                </button>
+              </div>
             </div>
           </section>
 
@@ -507,7 +857,7 @@ export default function Dashboard() {
               <MetricCard
                 key={item.key}
                 config={item}
-                metrics={dashboard?.metrics || {}}
+                metrics={dashboard ? liveMetrics : dashboard?.metrics || {}}
               />
             ))}
           </section>
@@ -517,21 +867,75 @@ export default function Dashboard() {
               <div className="panel-heading inline map-heading">
                 <div>
                   <span className="panel-kicker">
-                    <Globe2 size={13} /> Geospatial operations
+                    <Crosshair size={13} /> Geospatial acquisition
                   </span>
-                  <h2>Live signal map</h2>
+                  <h2>Live target map</h2>
                 </div>
-                <div className="map-legend">
-                  <span>
-                    <i className="critical" /> Critical
-                  </span>
-                  <span>
-                    <i className="high" /> High
-                  </span>
-                  <span>
-                    <i className="medium" /> Monitored
-                  </span>
+                <div className="map-heading-tools">
+                  <div className="map-legend">
+                    <span>
+                      <i className="critical" /> Critical
+                    </span>
+                    <span>
+                      <i className="high" /> High
+                    </span>
+                    <span>
+                      <i className="medium" /> Monitored
+                    </span>
+                  </div>
+                  <div
+                    className="map-view-toggle"
+                    role="group"
+                    aria-label="Map view mode"
+                  >
+                    <button
+                      className={viewMode === "grid" ? "active" : ""}
+                      onClick={() => setViewMode("grid")}
+                      aria-pressed={viewMode === "grid"}
+                    >
+                      2D GRID
+                    </button>
+                    <button
+                      className={viewMode === "orbit" ? "active" : ""}
+                      onClick={() => setViewMode("orbit")}
+                      aria-pressed={viewMode === "orbit"}
+                    >
+                      3D ORBIT
+                    </button>
+                  </div>
                 </div>
+              </div>
+              <div
+                className="acquisition-strip"
+                aria-label="Live acquisition paths"
+              >
+                <span className="acq-label">
+                  <Radar size={12} /> ACQUISITION
+                </span>
+                {[
+                  ["usgs", "USGS"],
+                  ["open-meteo", "METEO"],
+                  ["eonet", "EONET"],
+                  ["swpc", "SWPC"],
+                  ["gdelt", "GDELT"],
+                ].map(([key, label]) => {
+                  const mode = uplink.state[key];
+                  const relay =
+                    dashboard?.sourceStatus?.find(
+                      (source) =>
+                        source.id ===
+                        (key === "open-meteo" ? "open-meteo" : key),
+                    )?.status === "operational";
+                  const cls =
+                    mode === "direct" ? "direct" : relay ? "relay" : "offline";
+                  const text =
+                    mode === "direct" ? "DIRECT" : relay ? "RELAY" : "OFFLINE";
+                  return (
+                    <span key={key} className={`acq-chip ${cls}`}>
+                      <i /> {label} {text}
+                    </span>
+                  );
+                })}
               </div>
               <div className="filter-strip">
                 <ListFilter size={15} />
@@ -547,18 +951,29 @@ export default function Dashboard() {
                   ))}
                 </div>
               </div>
-              <div className="map-stage">
+              <div className={`map-stage ${scanning ? "scanning" : ""}`}>
                 {dashboard ? (
-                  <WorldMap
-                    events={filteredEvents}
-                    focusedEvent={focusedEvent}
-                    onFocus={setFocusedEvent}
-                  />
+                  viewMode === "orbit" ? (
+                    <OrbitalGlobe
+                      events={filteredEvents}
+                      focusedEvent={focusedEvent}
+                      onFocus={setFocusedEvent}
+                      scanning={scanning}
+                    />
+                  ) : (
+                    <WorldMap
+                      events={filteredEvents}
+                      focusedEvent={focusedEvent}
+                      onFocus={setFocusedEvent}
+                      scanning={scanning}
+                      satellites={satellites}
+                    />
+                  )
                 ) : (
                   <div className="map-skeleton" />
                 )}
                 <div className="map-counter">
-                  <Radio size={13} /> {filteredEvents.length} signals visible
+                  <Radio size={13} /> {filteredEvents.length} targets tracked
                 </div>
               </div>
               {focusedEvent && (
@@ -568,7 +983,8 @@ export default function Dashboard() {
                   </span>
                   <div>
                     <small>
-                      {titleCase(focusedEvent.category)} · {focusedEvent.region}
+                      Target lock · {titleCase(focusedEvent.category)} ·{" "}
+                      {focusedEvent.region}
                     </small>
                     <strong>{focusedEvent.title}</strong>
                   </div>
@@ -602,7 +1018,9 @@ export default function Dashboard() {
                 </div>
                 <div
                   className="risk-score"
-                  style={{ "--score": `${dashboard?.metrics.riskScore || 0}%` }}
+                  style={{
+                    "--score": `${(dashboard ? liveMetrics.riskScore : 0) || 0}%`,
+                  }}
                 >
                   <div>
                     <strong>{dashboard?.metrics.riskScore || "—"}</strong>
@@ -610,15 +1028,42 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <h2>
-                  {(dashboard?.metrics.riskScore || 0) >= 65
+                  {(dashboard ? liveMetrics.riskScore : 0) >= 65
                     ? "Elevated watch posture"
                     : "Measured watch posture"}
                 </h2>
+                <div className="risk-breakdown">
+                  {(dashboard?.riskBreakdown || []).map((axis) => (
+                    <div key={axis.id} title={`${axis.count} signals`}>
+                      <span>{axis.label}</span>
+                      <em>{axis.score}</em>
+                      <i>
+                        <b style={{ width: `${axis.score}%` }} />
+                      </i>
+                    </div>
+                  ))}
+                </div>
+                {(uplink.space || dashboard?.space) && (
+                  <div className="space-strip" title="NOAA SWPC space weather">
+                    <i />
+                    KP {(uplink.space || dashboard.space).kp?.kp ?? "—"}
+                    <em>
+                      SOLAR WIND{" "}
+                      {(uplink.space || dashboard.space).wind?.speed
+                        ? `${(uplink.space || dashboard.space).wind.speed} KM/S`
+                        : "—"}
+                    </em>
+                  </div>
+                )}
                 <p>
-                  Calculated from current signal severity and source
-                  availability—not a predictive risk rating.
+                  Computed from live signal severity and uplink availability—not
+                  a predictive risk rating.
                 </p>
               </section>
+              <InterceptConsole
+                events={filteredEvents}
+                systemLines={systemLines}
+              />
               <IntelligenceBrief events={filteredEvents} />
             </aside>
           </section>
@@ -705,54 +1150,55 @@ export default function Dashboard() {
                       >
                         <stop
                           offset="5%"
-                          stopColor="#a4f85e"
-                          stopOpacity={0.3}
+                          stopColor="#00e5ff"
+                          stopOpacity={0.35}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#a4f85e"
+                          stopColor="#00e5ff"
                           stopOpacity={0}
                         />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
-                      stroke="#26312d"
+                      stroke="rgba(0,229,255,0.12)"
                       strokeDasharray="3 5"
                       vertical={false}
                     />
                     <XAxis
                       dataKey="label"
-                      stroke="#718079"
+                      stroke="#5b7688"
                       fontSize={10}
                       tickLine={false}
                       axisLine={false}
                       interval={2}
                     />
                     <YAxis
-                      stroke="#718079"
+                      stroke="#5b7688"
                       fontSize={10}
                       tickLine={false}
                       axisLine={false}
                     />
                     <Tooltip
                       contentStyle={{
-                        background: "#101b17",
-                        border: "1px solid #2b3933",
-                        borderRadius: 10,
+                        background: "#04101a",
+                        border: "1px solid rgba(0,229,255,0.4)",
+                        borderRadius: 4,
                         fontSize: 12,
+                        fontFamily: "Share Tech Mono, monospace",
                       }}
                     />
                     <Area
                       type="monotone"
                       dataKey="signals"
-                      stroke="#a4f85e"
+                      stroke="#00e5ff"
                       fill="url(#signalGradient)"
                       strokeWidth={2}
                     />
                     <Area
                       type="monotone"
                       dataKey="priority"
-                      stroke="#ff765f"
+                      stroke="#ff2e4d"
                       fill="transparent"
                       strokeWidth={1.5}
                     />
@@ -798,14 +1244,39 @@ export default function Dashboard() {
               <p>Decision support for a complex world.</p>
             </div>
             <p>
-              <ShieldCheck size={14} /> WORLDGPZ combines live public providers
-              with curated baseline records. Always verify consequential
-              decisions against linked primary sources.
+              <ShieldCheck size={14} /> WORLDGPZ GOD&apos;S EYE combines live
+              public satellites and ground sensors with curated baseline
+              records. Always verify consequential decisions against linked
+              primary sources.
             </p>
             <span>© {new Date().getFullYear()} WORLDGPZ</span>
           </footer>
         </main>
       </div>
+      {toasts.length > 0 && (
+        <div className="toast-stack" aria-live="polite">
+          {toasts.map((toast) => (
+            <div key={toast.key} className={`toast-item sev-${toast.severity}`}>
+              <TriangleAlert size={15} />
+              <div>
+                <small>NEW SIGNAL INTERCEPTED · {toast.source}</small>
+                <strong>{toast.title}</strong>
+              </div>
+              <button
+                onClick={() =>
+                  setToasts((current) =>
+                    current.filter((item) => item.key !== toast.key),
+                  )
+                }
+                aria-label="Dismiss"
+              >
+                <X size={13} />
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+      <Ticker events={dashboard?.events || []} news={dashboard?.news || []} />
     </div>
   );
 }

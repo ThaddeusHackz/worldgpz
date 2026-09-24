@@ -16,6 +16,8 @@ const timeoutMs = 45_000;
 const routes = [
   ["health", "/api/health"],
   ["dashboard", "/api/v1/dashboard"],
+  ["pulse", "/api/v1/pulse"],
+  ["track", "/api/v1/track"],
   ["sources", "/api/v1/sources"],
   ["news", "/api/v1/news"],
   ["youtube", "/api/v1/media/channels"],

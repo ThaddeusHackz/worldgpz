@@ -1,4 +1,9 @@
 import { publicSources } from "../data/seed.js";
+import {
+  parseGdeltGeo,
+  parsePlanetaryKp,
+  parseSolarWindSpeed,
+} from "./parsers.js";
 
 const weatherLocations = [
   {
@@ -210,6 +215,41 @@ export class LiveSourcesService {
     }));
   }
 
+  /**
+   * GDELT GEO 2.0 — the global news-event database. Every point is a real
+   * location the world's press is writing about in the last 24 hours.
+   */
+  async #gdelt() {
+    const query = encodeURIComponent(
+      "protest OR conflict OR airstrike OR evacuation OR blockade OR militarized OR earthquake OR flood OR wildfire",
+    );
+    const payload = await this.#fetchJson(
+      `https://api.gdeltproject.org/api/v2/geo/geo?query=${query}&format=geojson&timespan=1d`,
+      { headers: { Accept: "application/json" } },
+    );
+    return parseGdeltGeo(payload);
+  }
+
+  /**
+   * NOAA Space Weather Prediction Center — planetary K-index and solar-wind
+   * speed. Real solar-storm telemetry; geomagnetic storms threaten power
+   * grids, aviation, and satellites.
+   */
+  async #spaceWeather() {
+    const [kpRows, windRows] = await Promise.all([
+      this.#fetchJson(
+        "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json",
+      ).catch(() => null),
+      this.#fetchJson(
+        "https://services.swpc.noaa.gov/products/solar-wind/speed.json",
+      ).catch(() => null),
+    ]);
+    const kp = parsePlanetaryKp(kpRows);
+    const wind = parseSolarWindSpeed(windRows);
+    if (!kp && !wind) throw new Error("SWPC feeds unavailable");
+    return { kp, wind, checkedAt: new Date().toISOString() };
+  }
+
   async snapshot({ fresh = false } = {}) {
     if (
       !fresh &&
@@ -225,12 +265,16 @@ export class LiveSourcesService {
       naturalResult,
       reliefResult,
       newsResult,
+      gdeltResult,
+      spaceResult,
     ] = await Promise.allSettled([
       this.#earthquakes(),
       this.#weather(),
       this.#naturalEvents(),
       this.#reliefWeb(),
       this.#newsApi(),
+      this.#gdelt(),
+      this.#spaceWeather(),
     ]);
     const unpack = (result) =>
       result.status === "fulfilled" ? result.value : [];
@@ -241,15 +285,20 @@ export class LiveSourcesService {
           ? "operational"
           : "degraded",
       latencyMs: Date.now() - startedAt,
+      items: result.status === "fulfilled" ? result.value?.length || 0 : 0,
+      checkedAt: new Date().toISOString(),
       message: result.status === "rejected" ? result.reason.message : undefined,
     });
 
     const reliefNews = unpack(reliefResult);
     const premiumNews = unpack(newsResult);
+    const space = spaceResult.status === "fulfilled" ? spaceResult.value : null;
     this.cache = {
       earthquakes: unpack(earthquakesResult),
       weather: unpack(weatherResult),
       natural: unpack(naturalResult),
+      globalNews: unpack(gdeltResult),
+      space,
       news: premiumNews.length ? premiumNews : reliefNews,
       sourceStatus: [
         { ...publicSources[0], ...sourceState(earthquakesResult) },
@@ -264,6 +313,22 @@ export class LiveSourcesService {
           cadence: "15 min",
           coverage: "Global",
           ...sourceState(newsResult, Boolean(this.config.newsApiKey)),
+        },
+        {
+          id: "gdelt",
+          name: "GDELT 2.0 World News",
+          type: "World news index",
+          cadence: "15 min",
+          coverage: "Global · 65 languages",
+          ...sourceState(gdeltResult),
+        },
+        {
+          id: "swpc",
+          name: "NOAA SWPC",
+          type: "Space weather",
+          cadence: "30 min",
+          coverage: "Solar system",
+          ...sourceState(spaceResult),
         },
       ],
       fetchedAt: new Date().toISOString(),

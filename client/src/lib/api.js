@@ -1,10 +1,30 @@
 const TOKEN_KEY = "worldgpz.admin.session";
 
-export const session = {
-  get: () => sessionStorage.getItem(TOKEN_KEY),
-  set: (token) => sessionStorage.setItem(TOKEN_KEY, token),
-  clear: () => sessionStorage.removeItem(TOKEN_KEY),
+const safeStorage = {
+  get: () => {
+    try {
+      return sessionStorage.getItem(TOKEN_KEY);
+    } catch {
+      return null;
+    }
+  },
+  set: (token) => {
+    try {
+      sessionStorage.setItem(TOKEN_KEY, token);
+    } catch {
+      /* storage unavailable — session lives in memory only */
+    }
+  },
+  clear: () => {
+    try {
+      sessionStorage.removeItem(TOKEN_KEY);
+    } catch {
+      /* ignore */
+    }
+  },
 };
+
+export const session = safeStorage;
 
 export async function api(path, options = {}) {
   const token = session.get();

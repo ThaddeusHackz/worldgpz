@@ -1,123 +1,43 @@
-# Deploy WORLDGPZ on Render
+# Deploying WORLDGPZ // GOD'S EYE on Render
 
-The project is designed to deploy as one Node web service plus one PostgreSQL database through the repository's `render.yaml` Blueprint.
+The project deploys as **one Node web service** (Express serves the API and the built React app) plus **MongoDB Atlas** for persistence. The old Render PostgreSQL database (`worldgpz-db`) has been removed from `render.yaml` and the codebase entirely.
 
-## 1. Rotate previously exposed credentials
+## Blueprint deploy
 
-Before deployment, revoke the old NewsAPI and YouTube keys that appeared in the previous tracked documentation. Also rotate every administrator, database, JWT, API, OAuth, and AI credential ever pasted into chat, an issue, a screenshot, or another non-secret channel. Do not reuse them. Store replacement values only in Render's environment and the provider consoles.
+1. In Render, choose **New → Blueprint** and point it at this repository.
+2. Render reads `render.yaml` and creates:
+   - the `worldgpz` Node web service (health check `/api/health`)
+3. Fill in the marked environment variables when prompted:
+   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — bootstrap administrator
+   - `MONGODB_URI` — your Atlas connection string (below)
+   - optionally every provider key you use (`NEWS_API_KEY`, `YOUTUBE_API_KEY`, `AI_API_KEY`, `WINDY_API_KEY`, `FINNHUB_API_KEY`, `NASA_FIRMS_API_KEY`, `ACLED_*`, `AISSTREAM_API_KEY`, `OPENSKY_*`, `CLOUDFLARE_API_TOKEN`, `EIA_API_KEY`, `FRED_API_KEY`)
+4. Deploy. Collections, indexes, and the bootstrap admin are created automatically on first boot.
 
-## 2. Prepare private production values
+## MongoDB Atlas setup
 
-Create these values in a password manager:
-
-- `ADMIN_EMAIL` — an email only the site owner controls.
-- `ADMIN_PASSWORD` — a unique password of at least 16 characters.
-
-Render generates `JWT_SECRET` automatically from the Blueprint. Never put any of these values in Git, the README, a screenshot, or a `VITE_*` variable.
-
-## 3. Create the Blueprint
-
-1. Push this branch and merge it into the GitHub branch you want Render to deploy.
-2. Sign in to [Render](https://render.com/).
-3. Choose **New → Blueprint**.
-4. Connect the `ThaddeusHackz/worldgpz` repository.
-5. Select the repository branch containing this rebuild.
-6. Render detects `render.yaml` and proposes:
-   - `worldgpz` Node web service
-   - `worldgpz-db` PostgreSQL database
-7. Enter the values marked **sync: false**:
-   - `ADMIN_EMAIL`
-   - `ADMIN_PASSWORD`
-   - optional production-eligible `NEWS_API_KEY`
-   - optional restricted `YOUTUBE_API_KEY`
-   - optional `OPENWEATHER_API_KEY`
-   - optional `AI_API_KEY`
-   - the other optional provider credentials listed in
-     [`API_KEYS_AND_LIVE_MEDIA.md`](API_KEYS_AND_LIVE_MEDIA.md)
-8. Apply the Blueprint and wait for the first deployment.
-
-If the `free` database plan is unavailable for your account or region, choose Render's current lowest-cost PostgreSQL plan and update the `plan` value in `render.yaml` before applying the Blueprint.
-
-## 4. Verify the deployment
-
-Replace `<service>` with your Render hostname:
-
-```bash
-curl -fsS https://<service>.onrender.com/api/health
-```
-
-Expected shape:
-
-```json
-{
-  "status": "ok",
-  "service": "worldgpz",
-  "version": "2.0.0",
-  "database": "postgresql"
-}
-```
-
-Run the complete public-route/provider scan:
-
-```bash
-npm run scan:live -- https://<service>.onrender.com
-```
-
-Then verify manually:
-
-1. Open `https://<service>.onrender.com/`.
-2. Confirm the map, metrics, filters, and source health cards load.
-3. Open `https://<service>.onrender.com/login`.
-4. Sign in using the `ADMIN_EMAIL` and `ADMIN_PASSWORD` entered in Render.
-5. Create a harmless test signal, edit it, then delete it.
-6. Confirm those operations appear in **Admin → Audit trail**.
-7. Confirm no secret appears in browser DevTools, page source, or network responses.
-
-## 5. Optional AI briefing
-
-The integration expects an OpenAI-compatible chat-completions endpoint:
+1. Create a free M0 cluster (any region) at [mongodb.com/atlas](https://www.mongodb.com/atlas).
+2. **Database Access**: create a database user (username + password).
+3. **Network Access**: add Render's outbound IPs — easiest is `0.0.0.0/0` (Atlas is credentials-protected), or restrict to Render's static outbound IPs if on a paid plan.
+4. **Connect → Drivers** and copy the SRV string, then set:
 
 ```dotenv
-AI_API_KEY=<private-key>
-AI_BASE_URL=https://api.openai.com/v1
-AI_MODEL=gpt-4o-mini
+MONGODB_URI=mongodb+srv://<user>:<password>@<cluster-host>.mongodb.net/?retryWrites=true&w=majority
+MONGODB_DB=worldgpz
 ```
 
-Set these in **Render → worldgpz → Environment**, then redeploy. If the provider is missing or unavailable, the app automatically uses its rules-based briefing engine.
+URL-encode special characters in the password. The service fails fast at boot if `MONGODB_URI` is missing in production — intentional, so a misconfiguration never silently runs without persistence.
 
-## 6. Custom domain
+## Health and heartbeat
 
-1. In the web service, open **Settings → Custom Domains**.
-2. Add the domain.
-3. Add the DNS records Render provides.
-4. Wait for Render's managed TLS certificate.
-5. Set `APP_URL` to the final `https://` domain if you use it in future integrations.
+- `GET /api/health` → `{"status":"ok","codename":"gods-eye","version":"3.1.0","autonomous":true,"database":"mongodb-atlas"}`
+- `GET /api/v1/pulse` → autonomous heartbeat: beat count, cadence, live feed counts (public-safe).
 
-No `VITE_API_URL` is required because the browser uses same-origin `/api` URLs.
+## AI briefings (optional)
 
-## 7. Ongoing operations
+Set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` to any OpenAI-compatible provider. If the provider errors, times out, or rejects the key, the deterministic rules engine takes over automatically — briefs never break.
 
-- Enable GitHub branch protection and dependency update alerts.
-- Review Render deploy logs after each release.
-- Run `npm run verify` before pushing.
-- Back up PostgreSQL before schema or bulk-content changes.
-- Rotate the admin password and API keys periodically.
-- Keep the source disclaimer visible; external provider availability is not guaranteed.
+## Operations
 
-## Troubleshooting
-
-### Deploy fails with “Invalid production configuration”
-
-One of `JWT_SECRET`, `ADMIN_EMAIL`, `ADMIN_PASSWORD`, or `DATABASE_URL` is missing or invalid. Check the service environment. The Blueprint should inject the database URL and generate the JWT secret.
-
-### Admin password rotation
-
-Change `ADMIN_PASSWORD` in Render and redeploy. Startup reconciles the configured password to the existing bootstrap account with the same `ADMIN_EMAIL`, invalidating the old password. If `ADMIN_EMAIL` itself changes, review and remove the old administrator deliberately rather than leaving multiple accounts.
-
-### Public sources show “degraded”
-
-The dashboard remains available with curated baseline records. Check Render outbound connectivity and provider status. USGS, Open-Meteo, and ReliefWeb can be temporarily unavailable or rate limited.
-
-### Render service sleeps or starts slowly
-
-This can happen on entry-level plans. The health endpoint is `/api/health`; configure an appropriate paid plan when consistent latency is required.
+- Deploys are automatic on push (`autoDeploy: true`).
+- Rotate `ADMIN_PASSWORD` in Render and redeploy to invalidate the old password (the bootstrap account reconciles at startup).
+- Back up the Atlas cluster before schema or bulk-content changes (Atlas continuous backup / snapshots).

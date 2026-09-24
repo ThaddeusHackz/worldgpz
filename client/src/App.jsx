@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { Navigate, Route, Routes } from "react-router-dom";
 import { useAuth } from "./lib/auth.jsx";
 import LoadingScreen from "./components/LoadingScreen.jsx";
+import BootSequence from "./components/BootSequence.jsx";
 
 const Dashboard = lazy(() => import("./pages/Dashboard.jsx"));
 const Operations = lazy(() => import("./pages/Operations.jsx"));
@@ -18,21 +19,24 @@ function ProtectedRoute({ children }) {
 
 export default function App() {
   return (
-    <Suspense fallback={<LoadingScreen />}>
-      <Routes>
-        <Route path="/" element={<Dashboard />} />
-        <Route path="/operations" element={<Operations />} />
-        <Route path="/login" element={<Login />} />
-        <Route
-          path="/admin/*"
-          element={
-            <ProtectedRoute>
-              <Admin />
-            </ProtectedRoute>
-          }
-        />
-        <Route path="*" element={<NotFound />} />
-      </Routes>
-    </Suspense>
+    <>
+      <BootSequence />
+      <Suspense fallback={<LoadingScreen />}>
+        <Routes>
+          <Route path="/" element={<Dashboard />} />
+          <Route path="/operations" element={<Operations />} />
+          <Route path="/login" element={<Login />} />
+          <Route
+            path="/admin/*"
+            element={
+              <ProtectedRoute>
+                <Admin />
+              </ProtectedRoute>
+            }
+          />
+          <Route path="*" element={<NotFound />} />
+        </Routes>
+      </Suspense>
+    </>
   );
 }

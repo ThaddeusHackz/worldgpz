@@ -10,6 +10,7 @@ import {
   Radio,
   RefreshCw,
   Ship,
+  Satellite,
   TrendingUp,
   TriangleAlert,
   WifiOff,
@@ -17,6 +18,7 @@ import {
 } from "lucide-react";
 import { api } from "../lib/api.js";
 import { relativeTime } from "../lib/format.js";
+import { useTrack } from "../lib/useTrack.js";
 
 const REFRESH_MS = 5 * 60 * 1000;
 
@@ -624,6 +626,64 @@ export function TrackingPanel() {
           <span>Connecting to live relay…</span>
         </div>
       )}
+    </section>
+  );
+}
+
+/**
+ * Live orbital constellation — real SGP4 propagation of CelesTrak TLEs.
+ * Positions, altitudes, and velocities update every 5 seconds.
+ */
+export function ConstellationPanel() {
+  const { fixes, status, catalogue } = useTrack();
+  return (
+    <section className="ops-panel ops-constellation" id="ops-orbit">
+      <header>
+        <div>
+          <Satellite size={14} />
+          <strong>Orbital assets</strong>
+          <span>{fixes.length}</span>
+        </div>
+        <em>{status === "locked" ? "SGP4 LOCK" : status.toUpperCase()}</em>
+      </header>
+      <div className="ops-tracking-list">
+        {fixes.map((sat) => (
+          <div className="ops-tracking-row" key={sat.name}>
+            <Satellite size={13} />
+            <div>
+              <strong>{sat.name}</strong>
+              <small>
+                {Math.abs(sat.latitude).toFixed(1)}°
+                {sat.latitude >= 0 ? "N" : "S"}{" "}
+                {Math.abs(sat.longitude).toFixed(1)}°
+                {sat.longitude >= 0 ? "E" : "W"}
+              </small>
+            </div>
+            <em>
+              {Math.round(sat.altitudeKm).toLocaleString("en")} km ·{" "}
+              {sat.speedKmH
+                ? `${Math.round(sat.speedKmH).toLocaleString("en")} km/h`
+                : "—"}
+            </em>
+          </div>
+        ))}
+        {fixes.length === 0 && (
+          <div className="ops-empty">
+            <Satellite size={16} />
+            <span>
+              {status === "degraded"
+                ? "Orbital catalogue unavailable"
+                : "Acquiring orbital elements…"}
+            </span>
+          </div>
+        )}
+      </div>
+      <footer className="ops-panel-note">
+        SGP4 propagation · CelesTrak TLE
+        {catalogue?.fetchedAt
+          ? ` · epoch ${catalogue.fetchedAt.slice(0, 10)}`
+          : ""}
+      </footer>
     </section>
   );
 }
