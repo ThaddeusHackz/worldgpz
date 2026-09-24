@@ -73,12 +73,18 @@ const videoResult = (channel, videoId, snippet = {}, discovery = "api") => ({
 
 export class MediaService {
   constructor(config, fetchFn = fetch) {
-    this.apiKey = config.youtubeApiKey;
+    // Read the key at call time so admin-console vault updates go live
+    // without a restart.
+    this.config = config;
     this.timeoutMs = config.fetchTimeoutMs;
     this.cacheMs = config.youtubeCacheSeconds * 1000;
     this.fetch = fetchFn;
     this.cache = null;
     this.cachedAt = 0;
+  }
+
+  get apiKey() {
+    return this.config?.youtubeApiKey || "";
   }
 
   async #youtube(path, parameters) {

@@ -16,7 +16,7 @@ import { useAuth } from "../lib/auth.jsx";
 export default function Login() {
   const { login, authenticated } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -31,7 +31,7 @@ export default function Login() {
     setBusy(true);
     setError("");
     try {
-      await login(email.trim(), password);
+      await login(identifier.trim(), password);
       navigate("/admin", { replace: true });
     } catch (requestError) {
       setError(requestError.message);
@@ -102,18 +102,18 @@ export default function Login() {
           <span className="panel-kicker">Operator authentication</span>
           <h2>Identify yourself</h2>
           <p>
-            Biometric calibration unavailable — use the operator credentials
-            configured in your private environment.
+            Clearance-level access to the GOD&apos;S EYE command console —
+            signals registry, uplink keys, and the full audit trail.
           </p>
 
           <label>
-            <span>Operator identity</span>
+            <span>Operator ID</span>
             <input
-              type="email"
+              type="text"
               autoComplete="username"
-              value={email}
-              onChange={(event) => setEmail(event.target.value)}
-              placeholder="operator@worldgpz.local"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
+              placeholder="admin"
               required
               autoFocus
             />
@@ -125,9 +125,9 @@ export default function Login() {
               autoComplete="current-password"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
-              placeholder="••••••••••••"
+              placeholder="•••••••••"
               required
-              minLength={12}
+              minLength={8}
             />
             <button
               type="button"

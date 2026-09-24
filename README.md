@@ -48,13 +48,20 @@ npm install
 cp .env.example .env
 ```
 
-Edit `.env`. At minimum, set unique values for:
+Edit `.env`. At minimum, set a unique JWT secret:
 
 ```dotenv
 JWT_SECRET=<at-least-32-random-characters>
-ADMIN_EMAIL=<your-private-admin-email>
-ADMIN_PASSWORD=<a-unique-password-with-at-least-12-characters>
 ```
+
+The admin console uses one fixed credential pair everywhere:
+
+- **Username:** `admin`
+- **Password:** `admin12345`
+
+Provider API keys are pasted in the admin console (**Uplink keys** tab) and
+persisted server-side in MongoDB Atlas (production) or the local JSON store
+(development) — they survive reloads, restarts, and work from any machine.
 
 Generate a JWT secret with:
 
@@ -85,33 +92,33 @@ npm start
 
 All provider credentials belong in the **server environment**. Never prefix private values with `VITE_`; Vite variables are compiled into the public browser bundle. The deployment you already run keeps its existing keys — every adapter below activates automatically when its key is present and degrades silently when it is not.
 
-| Variable                                      | Required            | Purpose                                                                      |
-| --------------------------------------------- | ------------------- | ---------------------------------------------------------------------------- |
-| `JWT_SECRET`                                  | Production          | Signs administrator sessions; 32+ random characters                          |
-| `ADMIN_EMAIL`                                 | Production          | Bootstrap administrator email                                                |
-| `ADMIN_PASSWORD`                              | Production          | Bootstrap password; 12+ characters                                           |
-| `MONGODB_URI`                                 | Production          | MongoDB Atlas connection string (`mongodb+srv://user:pass@cluster/db`)       |
-| `MONGODB_DB`                                  | No                  | Database name inside the cluster; defaults to `worldgpz`                     |
-| `NEWS_API_KEY`                                | No                  | Adds NewsAPI headlines; ReliefWeb remains the fallback                       |
-| `YOUTUBE_API_KEY`                             | No                  | Discovers current live broadcasts; remains server-side                       |
-| `YOUTUBE_CACHE_SECONDS`                       | No                  | Live-discovery cache; defaults to 10,800 seconds (3 hours)                   |
-| `OPENWEATHER_API_KEY`                         | No                  | Adds eight global current-weather watch points; Open-Meteo remains available |
-| `AI_API_KEY`                                  | No                  | Enables an OpenAI-compatible briefing provider                               |
-| `AI_BASE_URL`                                 | No                  | Defaults to `https://api.openai.com/v1`                                      |
-| `AI_MODEL`                                    | No                  | Defaults to `gpt-4o-mini`                                                    |
-| `CORS_ORIGINS`                                | Local/split hosting | Comma-separated allowed browser origins                                      |
-| `WINDY_API_KEY`                               | No                  | Global webcam network for the ops room                                       |
-| `FINNHUB_API_KEY`                             | No                  | Equities, indices, and crypto quotes                                         |
-| `NASA_FIRMS_API_KEY`                          | No                  | Satellite fire/thermal detections                                            |
-| `ACLED_ACCESS_TOKEN`                          | No                  | Conflict and protest events                                                  |
-| `AISSTREAM_API_KEY`                           | No                  | Live ship positions                                                          |
-| `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` | No                  | Aircraft tracking                                                            |
-| `CLOUDFLARE_API_TOKEN`                        | No                  | Internet outages and traffic anomalies                                       |
-| `EIA_API_KEY` / `FRED_API_KEY`                | No                  | Energy prices and macro indicators                                           |
+| Variable                                      | Required            | Purpose                                                                       |
+| --------------------------------------------- | ------------------- | ----------------------------------------------------------------------------- |
+| `JWT_SECRET`                                  | Production          | Signs administrator sessions; 32+ random characters                           |
+| `ADMIN_NAME`                                  | No                  | Display name for the fixed `admin` operator account                           |
+| _(console keys)_                              | No                  | API keys are managed in **Admin → Uplink keys** and persisted in the database |
+| `MONGODB_URI`                                 | Production          | MongoDB Atlas connection string (`mongodb+srv://user:pass@cluster/db`)        |
+| `MONGODB_DB`                                  | No                  | Database name inside the cluster; defaults to `worldgpz`                      |
+| `NEWS_API_KEY`                                | No                  | Adds NewsAPI headlines; ReliefWeb remains the fallback                        |
+| `YOUTUBE_API_KEY`                             | No                  | Discovers current live broadcasts; remains server-side                        |
+| `YOUTUBE_CACHE_SECONDS`                       | No                  | Live-discovery cache; defaults to 10,800 seconds (3 hours)                    |
+| `OPENWEATHER_API_KEY`                         | No                  | Adds eight global current-weather watch points; Open-Meteo remains available  |
+| `AI_API_KEY`                                  | No                  | Enables an OpenAI-compatible briefing provider                                |
+| `AI_BASE_URL`                                 | No                  | Defaults to `https://api.openai.com/v1`                                       |
+| `AI_MODEL`                                    | No                  | Defaults to `gpt-4o-mini`                                                     |
+| `CORS_ORIGINS`                                | Local/split hosting | Comma-separated allowed browser origins                                       |
+| `WINDY_API_KEY`                               | No                  | Global webcam network for the ops room                                        |
+| `FINNHUB_API_KEY`                             | No                  | Equities, indices, and crypto quotes                                          |
+| `NASA_FIRMS_API_KEY`                          | No                  | Satellite fire/thermal detections                                             |
+| `ACLED_ACCESS_TOKEN`                          | No                  | Conflict and protest events                                                   |
+| `AISSTREAM_API_KEY`                           | No                  | Live ship positions                                                           |
+| `OPENSKY_CLIENT_ID` / `OPENSKY_CLIENT_SECRET` | No                  | Aircraft tracking                                                             |
+| `CLOUDFLARE_API_TOKEN`                        | No                  | Internet outages and traffic anomalies                                        |
+| `EIA_API_KEY` / `FRED_API_KEY`                | No                  | Energy prices and macro indicators                                            |
 
 See `.env.example` for the complete list and tuning knobs.
 
-The production database is MongoDB Atlas: set `MONGODB_URI` (and optionally `MONGODB_DB`) in the Render environment and redeploy. Collections (`users`, `events`, `audit_logs`) and indexes are created automatically on first boot; the bootstrap admin is created when its email does not exist. On later starts, the configured `ADMIN_NAME` and `ADMIN_PASSWORD` are reconciled to that bootstrap account, so rotating the password in Render and redeploying invalidates the previous password.
+The production database is MongoDB Atlas: set `MONGODB_URI` (and optionally `MONGODB_DB`) in the Render environment and redeploy. Collections (`users`, `events`, `audit_logs`, `settings`) and indexes are created automatically on first boot. The bootstrap administrator is always `admin` / `admin12345` and is reconciled at every startup. API keys saved in the admin console live in the `settings` collection, so they are re-applied to the provider mesh on every boot — on any machine.
 
 ## Scripts
 

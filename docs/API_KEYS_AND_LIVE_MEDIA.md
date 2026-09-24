@@ -1,11 +1,29 @@
 # API keys and live-media deployment guide
 
-Updated: 2026-08-11
+Updated: 2026-09-24
 
 All 13 configured provider integrations are now wired into WORLDGPZ. Each
 adapter is server-side, quota-conscious (cached), and degrades gracefully to a
 `not-configured` or `degraded` state when the key is missing or failing — the
 application never crashes because of a provider.
+
+## Where keys come from (secure uplink vault)
+
+Keys can be provided in two places, in this order of precedence:
+
+1. **Admin console → Uplink keys** (`/api/admin/keys`) — the recommended
+   path. Keys are saved to the database (MongoDB Atlas in production, local
+   JSON in development), applied to the live config at boot, and survive
+   reloads, restarts, and any machine you sign in from. The API only ever
+   returns masked previews (last 4 characters); full values never leave the
+   server.
+2. **Environment variables** (`.env` / Render env) — classic fallback. Clearing
+   a vault key reverts to the environment value immediately.
+
+Set a key with `PUT /api/admin/keys` (`{ "keys": { "NEWS_API_KEY": "..." } }`),
+clear it with an empty string, and inspect provenance via the `source` field
+(`vault` | `environment` | `unset`). Every save is written to the audit trail
+(key ids only, never values).
 
 ## Provider status at a glance
 

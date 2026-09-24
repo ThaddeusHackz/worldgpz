@@ -40,7 +40,8 @@ export class Store {
     this.localDataFile = options.localDataFile;
     this.admin = options.admin;
     this.memoryOnly = this.localDataFile === ":memory:";
-    this.data = { users: [], events: [], audits: [] };
+    this.data = { users: [], events: [], audits: [], settings: {} };
+    this.data.settings ??= {};
   }
 
   async init() {
@@ -57,6 +58,10 @@ export class Store {
     if (this.memoryOnly) return;
     try {
       this.data = JSON.parse(await fs.readFile(this.localDataFile, "utf8"));
+      this.data.settings ??= {};
+      this.data.users ??= [];
+      this.data.events ??= [];
+      this.data.audits ??= [];
     } catch (error) {
       if (error.code !== "ENOENT") throw error;
       await this.#persist();
@@ -64,11 +69,13 @@ export class Store {
   }
 
   async #seed() {
+    const defaultUsername = this.admin.username || "admin";
     const existingUser = await this.getUserByEmail(this.admin.email);
     if (!existingUser) {
       const user = {
         id: randomUUID(),
         email: this.admin.email,
+        username: defaultUsername,
         name: this.admin.name,
         passwordHash: await bcrypt.hash(this.admin.password, 12),
         role: "admin",
@@ -85,7 +92,8 @@ export class Store {
         existingUser.password_hash,
       );
       const nameMatches = existingUser.name === this.admin.name;
-      if (!passwordMatches || !nameMatches) {
+      const usernameMatches = existingUser.username === defaultUsername;
+      if (!passwordMatches || !nameMatches || !usernameMatches) {
         const passwordHash = passwordMatches
           ? existingUser.password_hash
           : await bcrypt.hash(this.admin.password, 12);
@@ -94,6 +102,7 @@ export class Store {
         );
         if (user) {
           user.name = this.admin.name;
+          user.username = defaultUsername;
           user.passwordHash = passwordHash;
         }
       }
@@ -120,6 +129,33 @@ export class Store {
     );
     if (!user) return null;
     return { ...user, password_hash: user.passwordHash };
+  }
+
+  /** Resolve an operator identifier: email address or plain username. */
+  async findUser(identifier) {
+    const needle = String(identifier || "")
+      .trim()
+      .toLowerCase();
+    if (!needle) return null;
+    const user = this.data.users.find(
+      (item) =>
+        item.email === needle ||
+        String(item.username || "").toLowerCase() === needle,
+    );
+    if (!user) return null;
+    return { ...user, password_hash: user.passwordHash };
+  }
+
+  /** Durable admin-panel configuration (API keys and provider settings). */
+  async getSettings() {
+    return { ...(this.data.settings || {}) };
+  }
+
+  /** Replace the persisted settings namespace with the provided map. */
+  async saveSettings(settings) {
+    this.data.settings = { ...settings };
+    await this.#persist();
+    return this.getSettings();
   }
 
   async getUserById(id) {

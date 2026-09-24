@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import request from "supertest";
 import { Store } from "../src/store.js";
+import { Vault } from "../src/vault.js";
 import { createApp } from "../src/app.js";
 import { MediaService } from "../src/services/media.js";
 import { ProviderRegistry } from "../src/services/providers/registry.js";
@@ -81,6 +82,7 @@ const snapshot = {
 let app;
 let store;
 let token;
+let vault;
 
 beforeAll(async () => {
   store = await new Store({
@@ -89,6 +91,7 @@ beforeAll(async () => {
     localDataFile: ":memory:",
     admin: testConfig.admin,
   }).init();
+  vault = await new Vault(testConfig, store).load();
   const mediaService = new MediaService(testConfig);
   const intelligenceService = {
     generate: async () => ({
@@ -110,6 +113,7 @@ beforeAll(async () => {
       liveSources: { snapshot: async () => snapshot },
       intelligence: intelligenceService,
     }),
+    vault,
   });
 });
 
@@ -249,6 +253,25 @@ describe("authentication and admin API", () => {
     expect(response.body.user.passwordHash).toBeUndefined();
   });
 
+  it("authenticates by the plain operator username", async () => {
+    const response = await request(app)
+      .post("/api/auth/login")
+      .send({
+        username: "admin",
+        password: testConfig.admin.password,
+      })
+      .expect(200);
+    expect(response.body.user.role).toBe("admin");
+    expect(response.body.user.email).toBe(testConfig.admin.email);
+  });
+
+  it("rejects an unknown operator identifier", async () => {
+    await request(app)
+      .post("/api/auth/login")
+      .send({ username: "ghost", password: testConfig.admin.password })
+      .expect(401);
+  });
+
   it("protects administrator endpoints", async () => {
     await request(app).get("/api/admin/overview").expect(401);
     const response = await request(app)
@@ -293,5 +316,107 @@ describe("authentication and admin API", () => {
       .delete(`/api/admin/events/${id}`)
       .set("Authorization", `Bearer ${token}`)
       .expect(200);
+  });
+});
+
+describe("secure uplink vault (admin API keys)", () => {
+  beforeAll(async () => {
+    if (!token) {
+      const response = await request(app)
+        .post("/api/auth/login")
+        .send({
+          username: "admin",
+          password: testConfig.admin.password,
+        })
+        .expect(200);
+      token = response.body.token;
+    }
+  });
+
+  it("requires authentication", async () => {
+    await request(app).get("/api/admin/keys").expect(401);
+    await request(app)
+      .put("/api/admin/keys")
+      .send({ keys: { NEWS_API_KEY: "x" } })
+      .expect(401);
+  });
+
+  it("returns every registry entry masked, never in plaintext", async () => {
+    const response = await request(app)
+      .get("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    expect(response.body.success).toBe(true);
+    expect(response.body.data.length).toBeGreaterThanOrEqual(17);
+    for (const entry of response.body.data) {
+      expect(entry).toHaveProperty("id");
+      expect(entry).toHaveProperty("label");
+      expect(entry).toHaveProperty("group");
+      expect(["vault", "environment", "unset"]).toContain(entry.source);
+    }
+    const serialized = JSON.stringify(response.body.data);
+    expect(serialized).not.toContain("hunter2-never-appears");
+  });
+
+  it("persists saved keys, masks them, and applies them to live config", async () => {
+    const response = await request(app)
+      .put("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ keys: { NEWS_API_KEY: "hunter2-never-appears" } })
+      .expect(200);
+    const saved = response.body.data.find(
+      (entry) => entry.id === "NEWS_API_KEY",
+    );
+    expect(saved.source).toBe("vault");
+    expect(saved.configured).toBe(true);
+    expect(saved.masked).toMatch(/ears$/);
+    // Live config mutated immediately — no restart required.
+    expect(testConfig.newsApiKey).toBe("hunter2-never-appears");
+    // Plaintext never leaves the endpoint.
+    expect(JSON.stringify(response.body)).not.toContain("hunter2-never");
+
+    // Durable across a fresh vault boot (same store = same database).
+    const reborn = await new Vault(testConfig, store).load();
+    expect(
+      reborn.view().find((entry) => entry.id === "NEWS_API_KEY").source,
+    ).toBe("vault");
+
+    // Audit trail records which keys changed — not their values.
+    const audits = await store.listAudits(10);
+    const entry = audits.find((item) => item.action === "settings.update");
+    expect(entry).toBeTruthy();
+    expect(entry.metadata.keys).toContain("NEWS_API_KEY");
+    expect(JSON.stringify(entry)).not.toContain("hunter2");
+  });
+
+  it("clears a key back to the environment fallback", async () => {
+    const response = await request(app)
+      .put("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ keys: { NEWS_API_KEY: "" } })
+      .expect(200);
+    const cleared = response.body.data.find(
+      (entry) => entry.id === "NEWS_API_KEY",
+    );
+    expect(cleared.source).toBe("unset");
+    expect(testConfig.newsApiKey).toBe("");
+  });
+
+  it("rejects unknown keys and malformed payloads", async () => {
+    await request(app)
+      .put("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ keys: { NOT_A_REAL_KEY: "x" } })
+      .expect(400);
+    await request(app)
+      .put("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ keys: {} })
+      .expect(400);
+    await request(app)
+      .put("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ keys: { AI_MODEL: "x".repeat(401) } })
+      .expect(400);
   });
 });

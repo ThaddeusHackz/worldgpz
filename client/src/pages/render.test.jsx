@@ -12,6 +12,7 @@ import Dashboard from "./Dashboard.jsx";
 import Operations from "./Operations.jsx";
 import Login from "./Login.jsx";
 import NotFound from "./NotFound.jsx";
+import Admin, { UplinkKeys } from "./Admin.jsx";
 
 const now = new Date().toISOString();
 
@@ -178,5 +179,77 @@ describe("page render smoke", () => {
       </MemoryRouter>,
     );
     expect(html).toContain("Off the grid");
+  });
+
+  it("renders the admin console shell", async () => {
+    const html = renderToString(
+      <MemoryRouter initialEntries={["/admin"]}>
+        <AuthProvider>
+          <Admin />
+        </AuthProvider>
+      </MemoryRouter>,
+    );
+    await Promise.resolve();
+    expect(html).toContain("Command console");
+    expect(html).toContain("Uplink keys");
+    expect(html).toContain("Loading secure workspace");
+  });
+
+  it("renders the secure uplink vault with masked key cards", () => {
+    const vault = {
+      success: true,
+      data: [
+        {
+          id: "NEWS_API_KEY",
+          label: "NewsAPI",
+          group: "News & media",
+          kind: "secret",
+          hint: "newsapi.org top-headlines key",
+          configured: true,
+          source: "vault",
+          masked: "••••••••abcd",
+          value: null,
+        },
+        {
+          id: "AI_MODEL",
+          label: "AI model",
+          group: "Intelligence",
+          kind: "text",
+          hint: "Model id sent to the AI endpoint",
+          configured: true,
+          source: "environment",
+          masked: null,
+          value: "gpt-4o-mini",
+        },
+        {
+          id: "WINDY_API_KEY",
+          label: "Windy Webcams",
+          group: "Earth & security",
+          kind: "secret",
+          hint: "Global webcam network",
+          configured: false,
+          source: "unset",
+          masked: null,
+          value: null,
+        },
+      ],
+      meta: { persistence: "mongodb-atlas", durable: true, loadedAt: now },
+    };
+    const html = renderToString(
+      <MemoryRouter>
+        <UplinkKeys vault={vault} onSave={() => {}} />
+      </MemoryRouter>,
+    );
+    expect(html).toContain("Uplink keys");
+    expect(html).toContain("News &amp; media");
+    expect(html).toContain("Secure uplink vault");
+    expect(html).toContain("VAULT");
+    expect(html).toContain("ENV");
+    expect(html).toContain("OFFLINE");
+    expect(html).toContain("Save keys to secure storage");
+    expect(html).toContain("MongoDB Atlas — durable cross-machine storage");
+    // Plaintext secret must never be rendered; only the mask is allowed.
+    expect(html).not.toContain("hunter");
+    expect(html).toContain("••••••••abcd");
   });
 });

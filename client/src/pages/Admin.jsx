@@ -6,10 +6,16 @@ import {
   CheckCircle2,
   ChevronRight,
   CircleGauge,
+  Cloud,
   Database,
+  Eraser,
   ExternalLink,
+  Eye,
+  EyeOff,
   FileClock,
   Globe2,
+  HardDrive,
+  KeyRound,
   LayoutDashboard,
   List,
   LogOut,
@@ -19,6 +25,7 @@ import {
   Plus,
   Radio,
   RefreshCw,
+  Save,
   Search,
   Settings,
   ShieldCheck,
@@ -48,6 +55,7 @@ const blankEvent = {
 const tabs = [
   { id: "overview", label: "Overview", icon: LayoutDashboard },
   { id: "events", label: "Event registry", icon: List },
+  { id: "keys", label: "Uplink keys", icon: KeyRound },
   { id: "sources", label: "Source network", icon: Database },
   { id: "audit", label: "Audit trail", icon: FileClock },
 ];
@@ -518,6 +526,274 @@ function EventRegistry({ events, query, setQuery, onNew, onEdit, onDelete }) {
   );
 }
 
+/**
+ * Secure uplink vault — paste every provider API key once; it is persisted
+ * server-side (MongoDB Atlas / local JSON), survives reloads and restarts,
+ * and works from any machine. Only masked previews ever reach the browser.
+ */
+export function UplinkKeys({ vault, onSave }) {
+  const entries = vault?.data || [];
+  const meta = vault?.meta || {};
+  const [drafts, setDrafts] = useState({});
+  const [revealed, setRevealed] = useState({});
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const groups = useMemo(() => {
+    const order = [];
+    const map = new Map();
+    for (const entry of entries) {
+      if (!map.has(entry.group)) {
+        map.set(entry.group, []);
+        order.push(entry.group);
+      }
+      map.get(entry.group).push(entry);
+    }
+    return order.map((name) => ({ name, entries: map.get(name) }));
+  }, [entries]);
+
+  const dirty = Object.keys(drafts).length > 0;
+
+  function draftOf(entry) {
+    return Object.prototype.hasOwnProperty.call(drafts, entry.id)
+      ? drafts[entry.id]
+      : "";
+  }
+
+  function setDraft(id, value) {
+    setDrafts((current) => ({ ...current, [id]: value }));
+  }
+
+  function clearDraft(id) {
+    setDrafts((current) => {
+      const next = { ...current };
+      delete next[id];
+      return next;
+    });
+  }
+
+  async function submit(submitEvent) {
+    submitEvent.preventDefault();
+    if (!dirty) return;
+    setSaving(true);
+    setError("");
+    try {
+      await onSave(drafts);
+      setDrafts({});
+    } catch (requestError) {
+      setError(
+        requestError.details
+          ?.map((item) => `${item.path}: ${item.message}`)
+          .join(" · ") || requestError.message,
+      );
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  const configuredCount = entries.filter((entry) => entry.configured).length;
+
+  return (
+    <section>
+      <div className="admin-title">
+        <div>
+          <span className="eyebrow">
+            <i /> Secure uplink vault
+          </span>
+          <h1>Uplink keys</h1>
+          <p>
+            Paste every provider API key here. Keys are encrypted into the
+            server database — they persist across reloads, restarts, and every
+            machine you sign in from. Values never leave the server.
+          </p>
+        </div>
+        <div className="vault-meter">
+          <strong>
+            {configuredCount}/{entries.length}
+          </strong>
+          <span>feeds configured</span>
+        </div>
+      </div>
+
+      <div
+        className={`vault-persistence ${meta.durable ? "durable" : "ephemeral"}`}
+      >
+        {meta.durable ? <Cloud size={17} /> : <HardDrive size={17} />}
+        <div>
+          <strong>
+            {meta.durable
+              ? "MongoDB Atlas — durable cross-machine storage"
+              : "Local JSON store — durable on this host"}
+          </strong>
+          <p>
+            {meta.durable
+              ? "Saved keys re-apply to the provider mesh on every boot, in every region."
+              : "Keys survive reloads and restarts on this host. Connect MONGODB_URI for global durability."}
+          </p>
+        </div>
+        <span className={`vault-chip ${meta.durable ? "on" : ""}`}>
+          {meta.durable ? "SYNCED" : "LOCAL"}
+        </span>
+      </div>
+
+      <form onSubmit={submit}>
+        {groups.map((group) => (
+          <div className="vault-group" key={group.name}>
+            <h2 className="vault-group-title">{group.name}</h2>
+            <div className="vault-grid">
+              {group.entries.map((entry) => {
+                const draft = draftOf(entry);
+                const touched = Object.prototype.hasOwnProperty.call(
+                  drafts,
+                  entry.id,
+                );
+                const isOpen = revealed[entry.id];
+                const status = !entry.configured
+                  ? "off"
+                  : entry.source === "vault"
+                    ? "vault"
+                    : "env";
+                return (
+                  <article
+                    className={`vault-card ${touched ? "touched" : ""}`}
+                    key={entry.id}
+                  >
+                    <header>
+                      <div className="vault-card-title">
+                        <KeyRound size={15} />
+                        <strong>{entry.label}</strong>
+                      </div>
+                      <span className={`vault-status ${status}`}>
+                        <i />
+                        {status === "vault"
+                          ? "VAULT"
+                          : status === "env"
+                            ? "ENV"
+                            : "OFFLINE"}
+                      </span>
+                    </header>
+                    <p className="vault-hint">{entry.hint}</p>
+                    <div className="vault-input-row">
+                      <input
+                        type={
+                          entry.kind === "secret" && !isOpen
+                            ? "password"
+                            : "text"
+                        }
+                        value={draft}
+                        onChange={(event) =>
+                          setDraft(entry.id, event.target.value)
+                        }
+                        placeholder={
+                          entry.kind === "text"
+                            ? entry.value || `Set ${entry.id}`
+                            : entry.masked
+                              ? `${entry.masked} — paste to replace`
+                              : `Paste ${entry.id}`
+                        }
+                        autoComplete="off"
+                        spellCheck={false}
+                        aria-label={entry.label}
+                      />
+                      {entry.kind === "secret" && (
+                        <button
+                          type="button"
+                          className="vault-reveal"
+                          onClick={() =>
+                            setRevealed((current) => ({
+                              ...current,
+                              [entry.id]: !current[entry.id],
+                            }))
+                          }
+                          aria-label={isOpen ? "Hide input" : "Show input"}
+                        >
+                          {isOpen ? <EyeOff size={15} /> : <Eye size={15} />}
+                        </button>
+                      )}
+                    </div>
+                    <footer>
+                      <code>{entry.id}</code>
+                      <div className="vault-card-actions">
+                        {touched && (
+                          <button
+                            type="button"
+                            onClick={() => clearDraft(entry.id)}
+                          >
+                            {draft === "" ? "Keep saved" : "Undo"}
+                          </button>
+                        )}
+                        {entry.source === "vault" && !touched && (
+                          <button
+                            type="button"
+                            className="danger"
+                            onClick={() => setDraft(entry.id, "")}
+                          >
+                            <Eraser size={13} /> Clear
+                          </button>
+                        )}
+                      </div>
+                    </footer>
+                  </article>
+                );
+              })}
+            </div>
+          </div>
+        ))}
+
+        {error && (
+          <div className="inline-alert">
+            <TriangleAlert size={16} /> {error}
+          </div>
+        )}
+
+        <div className="vault-save-bar">
+          <div className="security-note compact">
+            <ShieldCheck size={18} />
+            <div>
+              <strong>Server-side only</strong>
+              <p>
+                The API returns masked previews (last 4 characters) — full
+                values stay in the database and provider adapters.
+              </p>
+            </div>
+          </div>
+          <div className="vault-save-actions">
+            {dirty && (
+              <span className="vault-dirty">
+                {Object.keys(drafts).length} pending change
+                {Object.keys(drafts).length > 1 ? "s" : ""}
+              </span>
+            )}
+            <button
+              type="button"
+              className="button secondary"
+              disabled={saving || !dirty}
+              onClick={() => setDrafts({})}
+            >
+              Discard
+            </button>
+            <button
+              className="button primary"
+              disabled={saving || !dirty}
+              type="submit"
+            >
+              {saving ? (
+                <>
+                  <RefreshCw className="spin" size={15} /> Sealing…
+                </>
+              ) : (
+                <>
+                  <Save size={15} /> Save keys to secure storage
+                </>
+              )}
+            </button>
+          </div>
+        </div>
+      </form>
+    </section>
+  );
+}
+
 function SourcesView({ sources }) {
   return (
     <section>
@@ -566,8 +842,10 @@ function SourcesView({ sources }) {
         <div>
           <strong>Secrets remain server-side</strong>
           <p>
-            Provider keys are read from Render environment variables and are
-            never embedded in the frontend bundle or returned by the API.
+            Provider keys live in the server database (env fallback supported),
+            are applied to the provider mesh at boot, and are never embedded in
+            the frontend bundle — only masked previews are returned by the API.
+            Manage them any time in <b>Uplink keys</b>.
           </p>
         </div>
       </div>
@@ -629,6 +907,7 @@ export default function Admin() {
   const [events, setEvents] = useState([]);
   const [sources, setSources] = useState([]);
   const [audits, setAudits] = useState([]);
+  const [vault, setVault] = useState(null);
   const [query, setQuery] = useState("");
   const [editor, setEditor] = useState(null);
   const [editorOpen, setEditorOpen] = useState(false);
@@ -641,17 +920,24 @@ export default function Admin() {
     setBusy(true);
     setError("");
     try {
-      const [overviewResponse, eventsResponse, sourcesResponse, auditResponse] =
-        await Promise.all([
-          api("/api/admin/overview"),
-          api("/api/admin/events"),
-          api("/api/v1/sources"),
-          api("/api/admin/audit?limit=100"),
-        ]);
+      const [
+        overviewResponse,
+        eventsResponse,
+        sourcesResponse,
+        auditResponse,
+        vaultResponse,
+      ] = await Promise.all([
+        api("/api/admin/overview"),
+        api("/api/admin/events"),
+        api("/api/v1/sources"),
+        api("/api/admin/audit?limit=100"),
+        api("/api/admin/keys"),
+      ]);
       setOverview(overviewResponse.data);
       setEvents(eventsResponse.data);
       setSources(sourcesResponse.data);
       setAudits(auditResponse.data);
+      setVault(vaultResponse);
     } catch (requestError) {
       if (requestError.status === 401) {
         await logout();
@@ -674,6 +960,20 @@ export default function Admin() {
   function openNew() {
     setEditor(null);
     setEditorOpen(true);
+  }
+  async function saveKeys(keys) {
+    const response = await api("/api/admin/keys", {
+      method: "PUT",
+      body: { keys },
+    });
+    setVault(response);
+    setToast(
+      `${Object.keys(keys).length} key${Object.keys(keys).length > 1 ? "s" : ""} sealed in secure storage`,
+    );
+    // Warm source status so freshly saved keys show up right away.
+    api("/api/v1/sources")
+      .then((payload) => setSources(payload.data))
+      .catch(() => {});
   }
   function saved(event, editing) {
     setEvents((current) =>
@@ -810,6 +1110,7 @@ export default function Admin() {
                   onDelete={remove}
                 />
               )}
+              {tab === "keys" && <UplinkKeys vault={vault} onSave={saveKeys} />}
               {tab === "sources" && <SourcesView sources={sources} />}
               {tab === "audit" && <AuditView audits={audits} />}
             </>

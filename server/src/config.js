@@ -33,10 +33,12 @@ export const config = {
     process.env.JWT_SECRET ||
     "development-only-secret-change-before-production",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN || "8h",
+  // Single, fixed operator credential pair for the command console.
   admin: {
-    name: process.env.ADMIN_NAME || "WORLDGPZ Administrator",
-    email: (process.env.ADMIN_EMAIL || "admin@worldgpz.local").toLowerCase(),
-    password: process.env.ADMIN_PASSWORD || "WorldGPZ!Local#2026",
+    name: process.env.ADMIN_NAME || "GOD'S EYE Operator",
+    username: "admin",
+    email: "admin@worldgpz.local",
+    password: "admin12345",
   },
   mongodbUri: process.env.MONGODB_URI || "",
   mongodbDb: process.env.MONGODB_DB || "worldgpz",
@@ -101,15 +103,13 @@ export function validateProductionConfig() {
     );
   }
   if (
-    config.admin.password.length < 12 ||
-    config.admin.password === "WorldGPZ!Local#2026"
+    config.admin.username !== "admin" ||
+    config.admin.password !== "admin12345"
   ) {
-    failures.push(
-      "ADMIN_PASSWORD must be a unique value of at least 12 characters",
-    );
+    // The fixed operator pair is baked in; this guard documents intent and
+    // fails loudly if a future change silently breaks the console login.
+    failures.push("Administrator credentials must remain admin / admin12345");
   }
-  if (!config.admin.email.includes("@"))
-    failures.push("ADMIN_EMAIL must be a valid email address");
 
   if (failures.length) {
     throw new Error(

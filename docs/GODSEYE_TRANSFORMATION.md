@@ -87,3 +87,37 @@ The provided MongoDB "Model API Key" (`al-7wit…`) can be wired through the exi
 ## Production resilience
 
 - Missing `MONGODB_URI` or an unreachable cluster no longer crashes production: the server degrades to the ephemeral JSON store with a loud warning and a `persistence` flag in `/api/health`. Atlas can be wired whenever ready — the grid stays up.
+
+---
+
+# Round 5 — Secure Uplink Vault, Fixed Operator Credentials & 2028 Interface (2026-09-24)
+
+## Fixed operator credentials
+
+- The console now authenticates one credential pair everywhere: **username `admin` / password `admin12345`**.
+- `loginSchema` accepts `username` or `email`; the stores gained `findUser(identifier)`; the bootstrap admin carries `username: "admin"` and is reconciled (name/username/password) on every boot in both the local JSON store and MongoDB Atlas.
+- The login screen accepts the plain operator ID (the old `type="email"` + `minLength={12}` combination made the new credentials impossible to enter — fixed).
+- Production config validation updated to match the fixed pair.
+
+## Secure uplink vault — durable admin-managed API keys
+
+- New `server/src/vault.js` (`Vault` + `KEY_REGISTRY`, 18 entries covering every provider key plus `AI_BASE_URL`/`AI_MODEL`).
+- Stores persist `settings` (`store.js` atomic JSON namespace, `store.mongo.js` `settings` collection with upsert/delete reconciliation).
+- `GET /api/admin/keys` returns masked views (`configured`, `source: vault|environment|unset`, last-4 mask, text values only for non-secret settings); `PUT /api/admin/keys` validates against the whitelist, persists, applies to the **live** config object, audits `settings.update` (ids only), and warms the provider mesh — no restart required.
+- Boot order: store → `vault.load()` → services, so every adapter (including the call-time `MediaService.apiKey` getter) sees stored keys on first use.
+- End-to-end verified: save → full process restart → key reported `source: vault`, Finnhub `configured: true`, live request issued with the stored key.
+
+## 2028 interface revamp
+
+- Design tokens re-tuned (brighter `--dim`/`--faint` for readability, `--accent-grad` signature gradient, glass surface token).
+- Atmosphere: aurora-drift background, drifting dual-scale tactical grid, slow acquisition sweep across the scanline layer.
+- Glass panels with backdrop blur, HUD corner brackets, gradient heading bars, glow stat cards, sweep-shine buttons, focus rings with halo.
+- **Bug fix:** `.admin-sidebar` had no styles at all (bare unstyled rail); the full sidebar system — nav, active states, counts, mobile drawer — is now defined, plus `.source-admin-grid` was matching `> div` while the markup renders `<article>`.
+- New **Uplink keys** admin tab: grouped key cards, VAULT/ENV/OFFLINE status chips, masked inputs with reveal, clear/undo, sticky save bar, persistence banner (Atlas vs local), dirty-change counter.
+- Entrance choreography (staggered rise-in), full `prefers-reduced-motion` guards.
+
+## Verification
+
+- `npm test` — 62/62 (56 server incl. 8 new vault/auth tests, 6 client).
+- `npm run build` — clean; `prettier --check .` — clean; `npm audit --omit=dev` — 0 vulnerabilities (`qs` override to 6.16.0).
+- Live production boot (`NODE_ENV=production`): login, key save/mask/clear, restart persistence, audit trail, 17/17 forensic scan routes reachable.

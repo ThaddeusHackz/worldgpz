@@ -1,6 +1,7 @@
 import { config, validateProductionConfig } from "./config.js";
 import { Store } from "./store.js";
 import { MongoStore } from "./store.mongo.js";
+import { Vault } from "./vault.js";
 import { LiveSourcesService } from "./services/liveSources.js";
 import { IntelligenceService } from "./services/intelligence.js";
 import { MediaService } from "./services/media.js";
@@ -39,6 +40,11 @@ if (!store) {
   }).init();
 }
 
+// Secure uplink vault: admin-panel API keys are loaded from durable storage
+// and applied to the live config BEFORE any service captures it, so pasted
+// keys are active on this boot and every future boot, on any machine.
+const vault = await new Vault(config, store).load();
+
 const liveSources = new LiveSourcesService(config);
 const intelligence = new IntelligenceService(config);
 const media = new MediaService(config);
@@ -65,6 +71,7 @@ const app = createApp({
   media,
   providers,
   pulse,
+  vault,
 });
 
 const server = app.listen(config.port, "0.0.0.0", () => {
