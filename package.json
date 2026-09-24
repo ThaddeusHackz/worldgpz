@@ -21,6 +21,9 @@
   "engines": {
     "node": ">=22.0.0"
   },
+  "overrides": {
+    "qs": "^6.16.0"
+  },
   "devDependencies": {
     "concurrently": "^9.2.1",
     "prettier": "^3.6.2",

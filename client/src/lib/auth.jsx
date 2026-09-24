@@ -22,10 +22,11 @@ export function AuthProvider({ children }) {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = useCallback(async (email, password) => {
+  const login = useCallback(async (identifier, password) => {
     const payload = await api("/api/auth/login", {
       method: "POST",
-      body: { email, password },
+      // Server accepts either the plain username (e.g. "admin") or an email.
+      body: { username: identifier, password },
     });
     session.set(payload.token);
     setUser(payload.user);

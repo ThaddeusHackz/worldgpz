@@ -2,15 +2,33 @@ import { z } from "zod";
 
 const trimmed = (min, max) => z.string().trim().min(min).max(max);
 
+const identifier = z
+  .string()
+  .trim()
+  .min(1, "Operator identifier is required")
+  .max(254);
+
 export const loginSchema = z
   .object({
-    email: z
-      .email()
-      .max(254)
-      .transform((value) => value.toLowerCase()),
+    // Either an email or the plain operator username (e.g. "admin").
+    email: identifier.optional(),
+    username: identifier.optional(),
     password: z.string().min(8).max(200),
   })
-  .strict();
+  .strict()
+  .refine((value) => Boolean(value.email || value.username), {
+    message: "Operator identifier is required",
+    path: ["username"],
+  });
+
+export const settingsSchema = z
+  .object({
+    keys: z.record(z.string().min(1).max(64), z.string().max(400)),
+  })
+  .strict()
+  .refine((value) => Object.keys(value.keys).length > 0, {
+    message: "At least one key is required",
+  });
 
 export const eventSchema = z
   .object({

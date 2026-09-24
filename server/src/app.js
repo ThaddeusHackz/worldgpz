@@ -16,6 +16,7 @@ import {
   loginSchema,
   parse,
   partialEventSchema,
+  settingsSchema,
 } from "./schemas.js";
 
 const severityWeight = { critical: 4, high: 3, medium: 2, low: 1 };
@@ -173,6 +174,7 @@ export function createApp({
   media,
   providers,
   pulse,
+  vault,
 }) {
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
@@ -634,14 +636,17 @@ export function createApp({
           error: "Invalid login request",
           details: result.error,
         });
-      const user = await store.getUserByEmail(result.data.email);
+      const identifier = (result.data.email || result.data.username || "")
+        .trim()
+        .toLowerCase();
+      const user = await store.findUser(identifier);
       const valid =
         user &&
         (await bcrypt.compare(result.data.password, user.password_hash));
       if (!valid)
         return res
           .status(401)
-          .json({ success: false, error: "Email or password is incorrect" });
+          .json({ success: false, error: "Username or password is incorrect" });
       await store.recordLogin(user.id);
       const token = jwt.sign(
         { sub: user.id, email: user.email, role: user.role, name: user.name },
@@ -832,6 +837,75 @@ export function createApp({
           .json({ success: true, data: items });
       } catch (error) {
         next(error);
+      }
+    },
+  );
+
+  // ------------------------------------------------------------------
+  // Secure uplink vault: durable admin-managed API keys.
+  // Values are stored server-side (MongoDB Atlas / local JSON), applied to
+  // the live provider mesh, and only ever returned masked.
+  // ------------------------------------------------------------------
+  app.get("/api/admin/keys", authenticate, adminOnly, (_req, res) => {
+    res.set("cache-control", "no-store").json({
+      success: true,
+      data: vault ? vault.view() : [],
+      meta: {
+        persistence: config.mongodbUri ? "mongodb-atlas" : "local-json",
+        durable: Boolean(config.mongodbUri),
+        loadedAt: vault?.loadedAt ?? null,
+      },
+    });
+  });
+
+  app.put(
+    "/api/admin/keys",
+    authenticate,
+    adminOnly,
+    async (req, res, next) => {
+      try {
+        if (!vault)
+          return res
+            .status(503)
+            .json({ success: false, error: "Secure vault unavailable" });
+        const result = parse(settingsSchema, req.body);
+        if (result.error)
+          return res.status(400).json({
+            success: false,
+            error: "Key validation failed",
+            details: result.error,
+          });
+        const updated = await vault.update(result.data.keys);
+        await store.addAudit({
+          actorEmail: req.user.email,
+          action: "settings.update",
+          entityType: "settings",
+          metadata: {
+            keys: updated.touched,
+            source: "admin-console",
+            requestId: req.id,
+          },
+        });
+        // Warm the provider mesh immediately so new keys go live without
+        // waiting for the next autonomous pulse.
+        try {
+          providers?.status();
+        } catch {
+          /* background warm-up is best-effort */
+        }
+        return res.set("cache-control", "no-store").json({
+          success: true,
+          data: updated.view,
+          meta: {
+            persistence: config.mongodbUri ? "mongodb-atlas" : "local-json",
+            durable: Boolean(config.mongodbUri),
+            savedAt: new Date().toISOString(),
+          },
+        });
+      } catch (error) {
+        if (error.status === 400)
+          return res.status(400).json({ success: false, error: error.message });
+        return next(error);
       }
     },
   );

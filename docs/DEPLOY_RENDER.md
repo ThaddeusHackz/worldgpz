@@ -8,10 +8,9 @@ The project deploys as **one Node web service** (Express serves the API and the 
 2. Render reads `render.yaml` and creates:
    - the `worldgpz` Node web service (health check `/api/health`)
 3. Fill in the marked environment variables when prompted:
-   - `ADMIN_EMAIL`, `ADMIN_PASSWORD` — bootstrap administrator
    - `MONGODB_URI` — your Atlas connection string (below)
-   - optionally every provider key you use (`NEWS_API_KEY`, `YOUTUBE_API_KEY`, `AI_API_KEY`, `WINDY_API_KEY`, `FINNHUB_API_KEY`, `NASA_FIRMS_API_KEY`, `ACLED_*`, `AISSTREAM_API_KEY`, `OPENSKY_*`, `CLOUDFLARE_API_TOKEN`, `EIA_API_KEY`, `FRED_API_KEY`)
-4. Deploy. Collections, indexes, and the bootstrap admin are created automatically on first boot.
+   - optionally every provider key you use — or skip env entirely and paste them later in the admin console (**Uplink keys** tab), which persists them in the database (`NEWS_API_KEY`, `YOUTUBE_API_KEY`, `AI_API_KEY`, `WINDY_API_KEY`, `FINNHUB_API_KEY`, `NASA_FIRMS_API_KEY`, `ACLED_*`, `AISSTREAM_API_KEY`, `OPENSKY_*`, `CLOUDFLARE_API_TOKEN`, `EIA_API_KEY`, `FRED_API_KEY`)
+4. Deploy. Collections, indexes, and the bootstrap admin (`admin` / `admin12345`) are created automatically on first boot.
 
 ## MongoDB Atlas setup
 
@@ -39,5 +38,6 @@ Set `AI_API_KEY`, `AI_BASE_URL`, and `AI_MODEL` to any OpenAI-compatible provide
 ## Operations
 
 - Deploys are automatic on push (`autoDeploy: true`).
-- Rotate `ADMIN_PASSWORD` in Render and redeploy to invalidate the old password (the bootstrap account reconciles at startup).
+- The console login is fixed: `admin` / `admin12345`.
+- API keys pasted in **Admin → Uplink keys** are stored in MongoDB Atlas and re-applied to the provider mesh on every boot — no env rotation needed.
 - Back up the Atlas cluster before schema or bulk-content changes (Atlas continuous backup / snapshots).

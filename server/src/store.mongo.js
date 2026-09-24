@@ -68,9 +68,12 @@ export class MongoStore {
     await this.db
       .collection("users")
       .createIndex({ email: 1 }, { unique: true });
+    await this.db.collection("users").createIndex({ username: 1 });
+    await this.db.collection("settings").createIndex({ updatedAt: -1 });
   }
 
   async #seed() {
+    const defaultUsername = this.admin.username || "admin";
     const users = this.db.collection("users");
     const existingUser = await users.findOne({
       email: this.admin.email.toLowerCase(),
@@ -80,6 +83,7 @@ export class MongoStore {
         _id: randomUUID(),
         id: null,
         email: this.admin.email.toLowerCase(),
+        username: defaultUsername,
         name: this.admin.name,
         passwordHash: await bcrypt.hash(this.admin.password, 12),
         role: "admin",
@@ -88,19 +92,26 @@ export class MongoStore {
       });
     } else {
       // The deployment environment is the bootstrap administrator's source of
-      // truth. Reconcile a rotated password/name at startup.
+      // truth. Reconcile a rotated password/name/username at startup.
       const passwordMatches = await bcrypt.compare(
         this.admin.password,
         existingUser.passwordHash,
       );
       const nameMatches = existingUser.name === this.admin.name;
-      if (!passwordMatches || !nameMatches) {
+      const usernameMatches = existingUser.username === defaultUsername;
+      if (!passwordMatches || !nameMatches || !usernameMatches) {
         const passwordHash = passwordMatches
           ? existingUser.passwordHash
           : await bcrypt.hash(this.admin.password, 12);
         await users.updateOne(
           { _id: existingUser._id },
-          { $set: { name: this.admin.name, passwordHash } },
+          {
+            $set: {
+              name: this.admin.name,
+              username: defaultUsername,
+              passwordHash,
+            },
+          },
         );
       }
     }
@@ -124,6 +135,63 @@ export class MongoStore {
       createdAt: user.createdAt,
       password_hash: user.passwordHash,
     };
+  }
+
+  /** Resolve an operator identifier: email address or plain username. */
+  async findUser(identifier) {
+    const needle = String(identifier || "")
+      .trim()
+      .toLowerCase();
+    if (!needle) return null;
+    const user = await this.db.collection("users").findOne({
+      $or: [{ email: needle }, { username: needle }],
+    });
+    if (!user) return null;
+    return {
+      id: user._id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+      lastLogin: user.lastLogin ?? null,
+      createdAt: user.createdAt,
+      password_hash: user.passwordHash,
+    };
+  }
+
+  /** Durable admin-panel configuration (API keys and provider settings). */
+  async getSettings() {
+    const docs = await this.db
+      .collection("settings")
+      .find({}, { projection: { _id: 1, value: 1 } })
+      .toArray();
+    return Object.fromEntries(
+      docs
+        .filter((doc) => typeof doc.value === "string")
+        .map((doc) => [doc._id, doc.value]),
+    );
+  }
+
+  /** Replace the persisted settings namespace with the provided map. */
+  async saveSettings(settings) {
+    const collection = this.db.collection("settings");
+    const keep = new Set(Object.keys(settings));
+    const existing = await collection
+      .find({}, { projection: { _id: 1 } })
+      .toArray();
+    const removals = existing
+      .map((doc) => doc._id)
+      .filter((id) => !keep.has(id));
+    if (removals.length)
+      await collection.deleteMany({ _id: { $in: removals } });
+    const now = new Date().toISOString();
+    for (const [id, value] of Object.entries(settings)) {
+      await collection.replaceOne(
+        { _id: id },
+        { _id: id, value, updatedAt: now },
+        { upsert: true },
+      );
+    }
+    return this.getSettings();
   }
 
   async getUserById(id) {
