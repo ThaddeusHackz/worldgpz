@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import L from "leaflet";
 import {
+  Circle,
   CircleMarker,
   MapContainer,
   Marker,
@@ -203,6 +204,15 @@ export default function WorldMap({
                 </div>
                 <strong>{event.title}</strong>
                 <p>{event.summary || `${event.sourceName} source signal`}</p>
+                {Number(event.magnitude) >= 5 && (
+                  <span className="impact-note">
+                    EST. felt radius ≈{" "}
+                    {Math.round(
+                      12 * Math.exp(0.5 * Number(event.magnitude)),
+                    ).toLocaleString("en")}{" "}
+                    km (attenuation estimate)
+                  </span>
+                )}
                 <div className="popup-meta">
                   <span>{event.region}</span>
                   <span>{relativeTime(event.publishedAt)}</span>
@@ -239,6 +249,29 @@ export default function WorldMap({
           />
         )}
 
+        {/* Estimated felt-radius rings for significant seismic events.
+            Approximation: r_km = 12 * e^(0.5*M) — inverse-square attenuation
+            heuristic, labeled ESTIMATE everywhere it appears. */}
+        {mappable
+          .filter((event) => Number(event.magnitude) >= 5)
+          .map((event) => (
+            <Circle
+              key={`impact-${event.id}`}
+              center={[Number(event.latitude), Number(event.longitude)]}
+              radius={Math.round(
+                12_000 * Math.exp(0.5 * Number(event.magnitude)),
+              )}
+              pathOptions={{
+                color: "#ffb020",
+                weight: 1,
+                opacity: 0.45,
+                dashArray: "4 6",
+                fillColor: "#ffb020",
+                fillOpacity: 0.04,
+              }}
+              interactive={false}
+            />
+          ))}
         {satellites.map((sat) => (
           <CircleMarker
             key={sat.name}

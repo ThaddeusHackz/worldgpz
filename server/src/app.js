@@ -205,9 +205,14 @@ export function createApp({
           connectSrc: [
             "'self'",
             "https://www.youtube.com",
-            // Client-side orbital telemetry (ISS live fix)
+            // Multi-path acquisition: the browser connects to public feeds directly
             "https://api.wheretheiss.at",
             "https://api.open-notify.org",
+            "https://earthquake.usgs.gov",
+            "https://api.open-meteo.com",
+            "https://eonet.gsfc.nasa.gov",
+            "https://services.swpc.noaa.gov",
+            "https://api.gdeltproject.org",
           ],
           frameSrc: [
             "'self'",
@@ -289,11 +294,12 @@ export function createApp({
       status: "ok",
       service: "worldgpz",
       codename: "gods-eye",
-      version: "3.2.0",
+      version: "3.3.0",
       autonomous: Boolean(pulse?.view().alive),
       time: new Date().toISOString(),
       uptimeSeconds: Math.round(process.uptime()),
       database: config.mongodbUri ? "mongodb-atlas" : "local-json",
+      persistence: config.mongodbUri ? "durable" : "ephemeral",
     });
   });
 

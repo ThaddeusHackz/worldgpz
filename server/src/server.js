@@ -10,16 +10,34 @@ import { createApp } from "./app.js";
 
 validateProductionConfig();
 
-const store = config.mongodbUri
-  ? await new MongoStore({
+let store;
+let persistenceMode = config.mongodbUri ? "durable" : "ephemeral";
+if (config.mongodbUri) {
+  try {
+    store = await new MongoStore({
       uri: config.mongodbUri,
       database: config.mongodbDb,
       admin: config.admin,
-    }).init()
-  : await new Store({
-      localDataFile: config.localDataFile,
-      admin: config.admin,
     }).init();
+  } catch (error) {
+    // Resilience over outage: never take the whole grid down because the
+    // database is unreachable. Degrade to the ephemeral JSON store and say so.
+    console.error(
+      JSON.stringify({
+        level: "error",
+        message: "MongoDB unavailable; degrading to ephemeral local store",
+        error: error?.message,
+      }),
+    );
+    persistenceMode = "ephemeral-fallback";
+  }
+}
+if (!store) {
+  store = await new Store({
+    localDataFile: config.localDataFile,
+    admin: config.admin,
+  }).init();
+}
 
 const liveSources = new LiveSourcesService(config);
 const intelligence = new IntelligenceService(config);
@@ -56,9 +74,10 @@ const server = app.listen(config.port, "0.0.0.0", () => {
       message: "WORLDGPZ GOD'S EYE listening",
       port: config.port,
       environment: config.env,
-      database: config.mongodbUri
-        ? `mongodb-atlas:${config.mongodbDb}`
-        : "local-json",
+      database:
+        persistenceMode === "durable"
+          ? `mongodb-atlas:${config.mongodbDb}`
+          : persistenceMode,
       autonomous: "engaged",
     }),
   );

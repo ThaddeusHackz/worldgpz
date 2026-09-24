@@ -2,17 +2,18 @@ import { useEffect, useRef, useState } from "react";
 
 /**
  * Cinematic system boot — the GOD'S EYE power-on sequence.
- * Plays once per browser session, is fully skippable, and respects
- * reduced-motion preferences by collapsing to a single frame.
+ * Every line is a verifiable statement about the real system: the feeds it
+ * connects to, the algorithms it runs, the transports it uses. Plays once
+ * per session, is fully skippable, and respects reduced-motion.
  */
 const BOOT_LINES = [
-  { text: "> GOD'S EYE KERNEL v3.0.0 ......... LOADED", cls: "ok" },
-  { text: "> ORBITAL UPLINK ................... ACQUIRED", cls: "ok" },
-  { text: "> SATELLITE CONSTELLATION .......... 27/27 ONLINE", cls: "ok" },
-  { text: "> GROUND SENSOR MESH ............... SYNCED", cls: "ok" },
-  { text: "> SIGNAL DECRYPTION KEYS ........... VERIFIED", cls: "ok" },
-  { text: "> FACIAL + THERMAL ANALYTICS ....... STANDBY", cls: "ok" },
-  { text: "> WARNING: CLEARANCE LEVEL OMEGA", cls: "warn" },
+  { text: "> GOD'S EYE KERNEL v3.3 ............. LOADED", cls: "ok" },
+  { text: "> USGS SEISMIC NET ................. UPLINK ARMED", cls: "ok" },
+  { text: "> NOAA SWPC + NASA EONET ........... UPLINK ARMED", cls: "ok" },
+  { text: "> GDELT WORLD-NEWS INDEX ........... UPLINK ARMED", cls: "ok" },
+  { text: "> ORBITAL MECHANICS (SGP4) ......... CELESTRAK TLE", cls: "ok" },
+  { text: "> DIRECT-TO-BROWSER ACQUISITION .... MULTI-PATH", cls: "ok" },
+  { text: "> EVERY SIGNAL CARRIES A SOURCE LINK", cls: "warn" },
 ];
 
 export default function BootSequence({ onDone }) {
@@ -75,7 +76,7 @@ export default function BootSequence({ onDone }) {
           </div>
           <div className="boot-title">
             <strong>GOD&apos;S EYE</strong>
-            <span>WORLDGPZ // ORBITAL SIGNAL INTELLIGENCE</span>
+            <span>WORLDGPZ // OPEN-SOURCE SIGNAL INTELLIGENCE</span>
           </div>
         </div>
         <div className="boot-log" aria-hidden="true">

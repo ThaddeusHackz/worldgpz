@@ -5896,3 +5896,79 @@ body {
 .ops-constellation .ops-tracking-row small {
   letter-spacing: 0.08em;
 }
+
+/* ============================================ ACQUISITION STRIP (multi-path) */
+.acquisition-strip {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  flex-wrap: wrap;
+  border: 1px solid var(--line-soft);
+  background: var(--inset);
+  padding: 8px 12px;
+  margin-bottom: 8px;
+}
+
+.acq-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  color: var(--cyan-soft);
+  margin-right: 4px;
+}
+
+.acq-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.1em;
+  padding: 3px 8px;
+  border: 1px solid var(--line-soft);
+  color: var(--faint);
+}
+
+.acq-chip i {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--faint);
+}
+
+.acq-chip.direct {
+  color: var(--lime);
+  border-color: rgba(70, 240, 160, 0.4);
+}
+
+.acq-chip.direct i {
+  background: var(--lime);
+  box-shadow: 0 0 8px var(--lime);
+  animation: pulse-dot 1.6s ease-in-out infinite;
+}
+
+.acq-chip.relay {
+  color: var(--cyan-soft);
+  border-color: rgba(0, 229, 255, 0.35);
+}
+
+.acq-chip.relay i {
+  background: var(--cyan);
+  box-shadow: 0 0 8px var(--cyan);
+}
+
+.acq-chip.offline {
+  color: var(--faint);
+  opacity: 0.75;
+}
+
+/* Impact estimate ring label */
+.impact-note {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  color: var(--amber);
+}

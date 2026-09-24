@@ -110,8 +110,6 @@ export function validateProductionConfig() {
   }
   if (!config.admin.email.includes("@"))
     failures.push("ADMIN_EMAIL must be a valid email address");
-  if (!config.mongodbUri)
-    failures.push("MONGODB_URI is required in production");
 
   if (failures.length) {
     throw new Error(

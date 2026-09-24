@@ -50,6 +50,7 @@ import WorldMap from "../components/WorldMap.jsx";
 import OrbitalGlobe from "../components/OrbitalGlobe.jsx";
 import { useLiveStream } from "../lib/useLiveStream.js";
 import { useTrack } from "../lib/useTrack.js";
+import { useDirectUplink } from "../lib/useDirectUplink.js";
 
 const categoryOptions = [
   "all",
@@ -305,7 +306,7 @@ function InterceptConsole({ events, systemLines }) {
       <div className="intercept-head">
         <span className="led" />
         <TerminalSquare size={13} /> Intercept console
-        <span>ENCRYPTED · CH-7</span>
+        <span>OPEN-SOURCE INTAKE</span>
       </div>
       <div className="intercept-body">
         {lines.map((line, index) => (
@@ -540,6 +541,64 @@ export default function Dashboard() {
   const [pulse, setPulse] = useState(null);
   const [toasts, setToasts] = useState([]);
   const { fixes: satellites } = useTrack();
+  const uplink = useDirectUplink();
+
+  /**
+   * Multi-path merge: browser-acquired events (DIRECT) override relayed
+   * copies of the same signal; server-curated baselines are always kept.
+   * Metrics are then recomputed from the merged stream — the numbers on
+   * screen always describe the events actually displayed.
+   */
+  const merged = useMemo(() => {
+    if (!dashboard) return uplink.events;
+    const direct = new Map(uplink.events.map((event) => [event.id, event]));
+    const out = [];
+    for (const event of dashboard.events) {
+      out.push(direct.get(event.id) || event);
+      direct.delete(event.id);
+    }
+    return [...out, ...direct.values()].sort(
+      (a, b) => new Date(b.publishedAt) - new Date(a.publishedAt),
+    );
+  }, [dashboard, uplink.events]);
+
+  const liveMetrics = useMemo(() => {
+    const critical = merged.filter(
+      (event) => event.severity === "critical",
+    ).length;
+    const high = merged.filter((event) => event.severity === "high").length;
+    const weight = merged.reduce(
+      (sum, event) =>
+        sum + { critical: 4, high: 3, medium: 2, low: 1 }[event.severity] * 1,
+      0,
+    );
+    const serverStatus = dashboard?.sourceStatus || [];
+    const sourceStatuses = [
+      ...serverStatus.map((source) => source.status),
+      ...Object.values(uplink.state),
+    ];
+    const online = sourceStatuses.filter((status) =>
+      ["operational", "direct"].includes(status),
+    ).length;
+    return {
+      activeSignals: merged.length,
+      highPriority: critical + high,
+      criticalSignals: critical,
+      seismic24h:
+        uplink.state.usgs === "direct"
+          ? merged.filter((event) => event.sourceName === "USGS").length
+          : (dashboard?.metrics.seismic24h ?? 0),
+      sourcesOnline: online,
+      sourcesTotal: sourceStatuses.length,
+      riskScore: Math.min(
+        99,
+        Math.max(
+          18,
+          Math.round((weight / Math.max(merged.length, 1)) * 19 + critical * 2),
+        ),
+      ),
+    };
+  }, [merged, dashboard, uplink.state]);
 
   const pushToasts = (signals) => {
     const items = signals.slice(0, 3).map((signal) => ({
@@ -669,9 +728,9 @@ export default function Dashboard() {
   }, []);
 
   const filteredEvents = useMemo(() => {
-    if (!dashboard) return [];
+    if (!merged.length) return [];
     const needle = query.trim().toLowerCase();
-    return dashboard.events.filter(
+    return merged.filter(
       (event) =>
         (category === "all" || event.category === category) &&
         (severity === "all" || event.severity === severity) &&
@@ -680,7 +739,7 @@ export default function Dashboard() {
             .toLowerCase()
             .includes(needle)),
     );
-  }, [dashboard, query, category, severity]);
+  }, [merged, query, category, severity]);
 
   targetCount.current = filteredEvents.length;
 
@@ -798,7 +857,7 @@ export default function Dashboard() {
               <MetricCard
                 key={item.key}
                 config={item}
-                metrics={dashboard?.metrics || {}}
+                metrics={dashboard ? liveMetrics : dashboard?.metrics || {}}
               />
             ))}
           </section>
@@ -845,6 +904,38 @@ export default function Dashboard() {
                     </button>
                   </div>
                 </div>
+              </div>
+              <div
+                className="acquisition-strip"
+                aria-label="Live acquisition paths"
+              >
+                <span className="acq-label">
+                  <Radar size={12} /> ACQUISITION
+                </span>
+                {[
+                  ["usgs", "USGS"],
+                  ["open-meteo", "METEO"],
+                  ["eonet", "EONET"],
+                  ["swpc", "SWPC"],
+                  ["gdelt", "GDELT"],
+                ].map(([key, label]) => {
+                  const mode = uplink.state[key];
+                  const relay =
+                    dashboard?.sourceStatus?.find(
+                      (source) =>
+                        source.id ===
+                        (key === "open-meteo" ? "open-meteo" : key),
+                    )?.status === "operational";
+                  const cls =
+                    mode === "direct" ? "direct" : relay ? "relay" : "offline";
+                  const text =
+                    mode === "direct" ? "DIRECT" : relay ? "RELAY" : "OFFLINE";
+                  return (
+                    <span key={key} className={`acq-chip ${cls}`}>
+                      <i /> {label} {text}
+                    </span>
+                  );
+                })}
               </div>
               <div className="filter-strip">
                 <ListFilter size={15} />
@@ -927,7 +1018,9 @@ export default function Dashboard() {
                 </div>
                 <div
                   className="risk-score"
-                  style={{ "--score": `${dashboard?.metrics.riskScore || 0}%` }}
+                  style={{
+                    "--score": `${(dashboard ? liveMetrics.riskScore : 0) || 0}%`,
+                  }}
                 >
                   <div>
                     <strong>{dashboard?.metrics.riskScore || "—"}</strong>
@@ -935,7 +1028,7 @@ export default function Dashboard() {
                   </div>
                 </div>
                 <h2>
-                  {(dashboard?.metrics.riskScore || 0) >= 65
+                  {(dashboard ? liveMetrics.riskScore : 0) >= 65
                     ? "Elevated watch posture"
                     : "Measured watch posture"}
                 </h2>
@@ -950,14 +1043,14 @@ export default function Dashboard() {
                     </div>
                   ))}
                 </div>
-                {dashboard?.space && (
+                {(uplink.space || dashboard?.space) && (
                   <div className="space-strip" title="NOAA SWPC space weather">
                     <i />
-                    KP {dashboard.space.kp?.kp ?? "—"}
+                    KP {(uplink.space || dashboard.space).kp?.kp ?? "—"}
                     <em>
                       SOLAR WIND{" "}
-                      {dashboard.space.wind?.speed
-                        ? `${dashboard.space.wind.speed} KM/S`
+                      {(uplink.space || dashboard.space).wind?.speed
+                        ? `${(uplink.space || dashboard.space).wind.speed} KM/S`
                         : "—"}
                     </em>
                   </div>
