@@ -80,28 +80,49 @@ export class LiveSourcesService {
     const url =
       "https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/4.5_day.geojson";
     const data = await this.#fetchJson(url);
-    return data.features.slice(0, 30).map((feature) => ({
-      id: `usgs-${feature.id}`,
-      title: feature.properties.title,
-      summary: `Magnitude ${feature.properties.mag?.toFixed(1) ?? "—"} seismic event at a depth of ${feature.geometry.coordinates[2]?.toFixed(1) ?? "—"} km.`,
-      category: "seismic",
-      severity:
-        feature.properties.mag >= 6
-          ? "critical"
-          : feature.properties.mag >= 5
-            ? "high"
-            : "medium",
-      status: feature.properties.tsunami ? "monitoring" : "verified",
-      region: "Global",
-      country: feature.properties.place || "Unknown",
-      latitude: feature.geometry.coordinates[1],
-      longitude: feature.geometry.coordinates[0],
-      magnitude: feature.properties.mag,
-      sourceName: "USGS",
-      sourceUrl: feature.properties.url,
-      publishedAt: new Date(feature.properties.time).toISOString(),
-      live: true,
-    }));
+    // Guarded per feature: USGS emits `geometry: null` entries, and one bad
+    // row used to throw inside the `.map`, discarding the entire batch and
+    // reporting the whole earthquake feed as degraded.
+    return (Array.isArray(data.features) ? data.features : [])
+      .slice(0, 30)
+      .flatMap((feature) => {
+        const coordinates = feature?.geometry?.coordinates;
+        const properties = feature?.properties;
+        const longitude = Number(coordinates?.[0]);
+        const latitude = Number(coordinates?.[1]);
+        if (
+          !feature?.id ||
+          !Number.isFinite(longitude) ||
+          !Number.isFinite(latitude)
+        )
+          return [];
+
+        const magnitude = Number(properties?.mag);
+        const depth = Number(coordinates?.[2]);
+        const time = new Date(properties?.time);
+        return [
+          {
+            id: `usgs-${feature.id}`,
+            title: properties?.title || `Seismic event ${feature.id}`,
+            summary: `Magnitude ${Number.isFinite(magnitude) ? magnitude.toFixed(1) : "—"} seismic event at a depth of ${Number.isFinite(depth) ? depth.toFixed(1) : "—"} km.`,
+            category: "seismic",
+            severity:
+              magnitude >= 6 ? "critical" : magnitude >= 5 ? "high" : "medium",
+            status: properties?.tsunami ? "monitoring" : "verified",
+            region: "Global",
+            country: properties?.place || "Unknown",
+            latitude,
+            longitude,
+            magnitude: Number.isFinite(magnitude) ? magnitude : null,
+            sourceName: "USGS",
+            sourceUrl: properties?.url || "",
+            publishedAt: Number.isFinite(time.getTime())
+              ? time.toISOString()
+              : new Date().toISOString(),
+            live: true,
+          },
+        ];
+      });
   }
 
   async #weather() {

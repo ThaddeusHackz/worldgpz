@@ -16,14 +16,19 @@ export function useLiveStream({ onSignal, onPulse } = {}) {
 
     source.addEventListener("open", () => setConnected(true));
     source.addEventListener("error", () => setConnected(false));
-    source.addEventListener("signal", (event) => {
+    // The server emits `signals` (plural) — GridPulse.#emit("signals", ...).
+    // This previously listened for `signal`, so freshly intercepted events
+    // never reached the browser and the live feed silently never updated.
+    const onSignals = (event) => {
       try {
         const payload = JSON.parse(event.data);
-        handlers.current.onSignal?.(payload);
+        const signals = Array.isArray(payload) ? payload : [payload];
+        for (const signal of signals) handlers.current.onSignal?.(signal);
       } catch {
         /* malformed frame — ignore */
       }
-    });
+    };
+    source.addEventListener("signals", onSignals);
     source.addEventListener("pulse", (event) => {
       try {
         handlers.current.onPulse?.(JSON.parse(event.data));
@@ -32,7 +37,10 @@ export function useLiveStream({ onSignal, onPulse } = {}) {
       }
     });
 
-    return () => source.close();
+    return () => {
+      source.removeEventListener("signals", onSignals);
+      source.close();
+    };
   }, []);
 
   return { connected };
