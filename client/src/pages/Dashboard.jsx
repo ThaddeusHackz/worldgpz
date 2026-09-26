@@ -40,6 +40,12 @@ import {
 } from "recharts";
 import { api } from "../lib/api.js";
 import {
+  ChokepointBoard,
+  MarketsPulse,
+  RiskIndex,
+  WireTicker,
+} from "../components/IntelPanels.jsx";
+import {
   compactNumber,
   formatUtc,
   relativeTime,
@@ -860,6 +866,17 @@ export default function Dashboard() {
                 metrics={dashboard ? liveMetrics : dashboard?.metrics || {}}
               />
             ))}
+          </section>
+
+          <WireTicker
+            news={dashboard?.news ?? []}
+            events={dashboard?.events ?? []}
+          />
+
+          <section className="intel-grid">
+            <RiskIndex risk={dashboard?.riskIndex} />
+            <ChokepointBoard chokepoints={dashboard?.chokepoints} />
+            <MarketsPulse />
           </section>
 
           <section className="command-grid" id="map">

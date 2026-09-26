@@ -7741,3 +7741,310 @@ select option {
   border-color: rgba(255, 84, 112, 0.4);
   background: rgba(255, 46, 77, 0.09);
 }
+
+/* ---------------------------------------------------------------------------
+   Intelligence panels: wire, markets, risk index, chokepoints.
+   All type is >= 12px and every colour passes WCAG AA on the panel surface.
+   ------------------------------------------------------------------------ */
+.intel-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(310px, 1fr));
+  gap: 18px;
+  margin-top: 18px;
+}
+
+.intel-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.intel-heading-text h3 {
+  margin: 2px 0 0;
+  font-size: 17px;
+  font-weight: 650;
+  letter-spacing: 0.01em;
+  color: var(--ice);
+}
+
+.intel-basis {
+  margin: 0;
+  font-size: 12.5px;
+  line-height: 1.5;
+  color: var(--dim);
+}
+
+.intel-empty {
+  margin: 0;
+  padding: 14px 0;
+  font-size: 13.5px;
+  line-height: 1.6;
+  color: var(--dim);
+}
+
+/* --- live wire --------------------------------------------------------- */
+.wire-ticker {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 18px;
+  padding: 10px 14px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.wire-badge {
+  flex: none;
+  padding: 3px 9px;
+  border-radius: 999px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  color: #08080a;
+  background: var(--cyan);
+}
+
+.wire-track {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.wire-list {
+  display: flex;
+  gap: 34px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  white-space: nowrap;
+  animation: wire-scroll 70s linear infinite;
+}
+
+.wire-ticker:hover .wire-list {
+  animation-play-state: paused;
+}
+
+@keyframes wire-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+.wire-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13.5px;
+  color: var(--ice);
+}
+
+.wire-label {
+  flex: none;
+  padding: 2px 7px;
+  border-radius: 5px;
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.05em;
+  background: rgba(232, 179, 76, 0.14);
+  color: var(--cyan-soft);
+}
+
+.wire-empty {
+  font-size: 13.5px;
+  color: var(--dim);
+}
+
+/* --- risk index -------------------------------------------------------- */
+.risk-list,
+.choke-list,
+.markets-list {
+  display: grid;
+  gap: 7px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.risk-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 76px 38px 44px;
+  align-items: center;
+  gap: 10px;
+}
+
+.risk-name {
+  font-size: 13.5px;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.risk-bar {
+  height: 6px;
+  border-radius: 999px;
+  background: var(--inset);
+  overflow: hidden;
+}
+
+.risk-fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--accent-grad);
+}
+
+.risk-score {
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ice);
+}
+
+.risk-delta {
+  font-size: 12.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--faint);
+}
+
+.risk-delta.up {
+  color: var(--coral);
+}
+
+.risk-delta.down {
+  color: var(--lime);
+}
+
+.risk-drivers {
+  margin: 2px 0 0;
+  font-size: 12.5px;
+  color: var(--dim);
+}
+
+/* --- chokepoints ------------------------------------------------------- */
+.choke-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto 34px 74px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.choke-name {
+  font-size: 13.5px;
+  color: var(--ice);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.choke-region {
+  font-size: 12.5px;
+  color: var(--faint);
+}
+
+.choke-score {
+  font-size: 13.5px;
+  font-weight: 700;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ice);
+}
+
+.choke-status {
+  font-size: 12px;
+  font-weight: 650;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  text-align: right;
+  color: var(--dim);
+}
+
+/* --- markets ----------------------------------------------------------- */
+.markets-row {
+  display: grid;
+  grid-template-columns: 76px minmax(0, 1fr) auto 74px;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--line-soft);
+}
+
+.markets-symbol {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--font-mono);
+  color: var(--cyan-soft);
+}
+
+.markets-name {
+  font-size: 12.5px;
+  color: var(--dim);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.markets-price {
+  font-size: 13.5px;
+  font-weight: 650;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--ice);
+}
+
+.markets-change {
+  font-size: 12.5px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+}
+
+.markets-change.up {
+  color: var(--lime);
+}
+
+.markets-change.down {
+  color: var(--coral);
+}
+
+/* --- severity tones ---------------------------------------------------- */
+.tone-critical .wire-label,
+.tone-critical .choke-status {
+  background: rgba(255, 46, 77, 0.16);
+  color: var(--coral);
+}
+
+.tone-high .wire-label,
+.tone-high .choke-status {
+  background: rgba(255, 138, 61, 0.16);
+  color: var(--amber);
+}
+
+.tone-elevated .wire-label {
+  background: rgba(232, 179, 76, 0.16);
+  color: var(--cyan-soft);
+}
+
+.tone-low .wire-label,
+.tone-low .choke-status {
+  background: rgba(70, 240, 160, 0.13);
+  color: var(--lime);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .wire-list {
+    animation: none;
+  }
+
+  .wire-track {
+    overflow-x: auto;
+  }
+}
