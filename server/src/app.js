@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import { layerCatalog } from "./data/seed.js";
 import { TrackService } from "./services/track.js";
+import { chokepointStatus, countryRisk } from "./services/situational.js";
 import {
   eventSchema,
   loginSchema,
@@ -179,6 +180,32 @@ export function createApp({
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
   const trackService = new TrackService(config);
+  // Rolling per-country scores so the index can report a real delta pass to
+  // pass. Bounded so a long-running process cannot grow it without limit.
+  const riskHistory = new Map();
+  const MAX_RISK_HISTORY = 500;
+
+  /** Country index + chokepoint picture derived from the same live snapshot. */
+  const situational = (snapshot, curated = []) => {
+    const events = [
+      ...(snapshot?.earthquakes ?? []),
+      ...(snapshot?.natural ?? []),
+      ...(snapshot?.weather ?? []),
+      ...(snapshot?.globalNews ?? []),
+      ...curated,
+    ];
+    const news = snapshot?.news ?? [];
+    const risk = countryRisk(events, news, { history: riskHistory });
+    if (riskHistory.size > MAX_RISK_HISTORY) {
+      for (const key of [...riskHistory.keys()].slice(
+        0,
+        riskHistory.size - MAX_RISK_HISTORY,
+      )) {
+        riskHistory.delete(key);
+      }
+    }
+    return { risk, chokepoints: chokepointStatus(events, news) };
+  };
 
   if (config.trustProxy) app.set("trust proxy", config.trustProxy);
   app.disable("x-powered-by");
@@ -442,6 +469,7 @@ export function createApp({
         (source) => source.status === "operational",
       ).length;
       const operationalPicture = buildOperationalPicture(events);
+      const picture = situational(snapshot, events);
       res
         .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
         .json({
@@ -460,6 +488,8 @@ export function createApp({
             news: snapshot.news,
             sourceStatus: snapshot.sourceStatus,
             riskBreakdown: riskBreakdown(events),
+            riskIndex: picture.risk,
+            chokepoints: picture.chokepoints,
             space: snapshot.space || null,
             trend: trend(events),
             layers: operationalPicture.layers,
@@ -513,6 +543,32 @@ export function createApp({
         data: snapshot.news,
         generatedAt: snapshot.fetchedAt,
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/risk", async (_req, res, next) => {
+    try {
+      const snapshot = await liveSources.snapshot();
+      const { items } = await store.listEvents({ limit: 100 });
+      const { risk } = situational(snapshot, items);
+      res
+        .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
+        .json({ success: true, data: risk });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/chokepoints", async (_req, res, next) => {
+    try {
+      const snapshot = await liveSources.snapshot();
+      const { items } = await store.listEvents({ limit: 100 });
+      const { chokepoints } = situational(snapshot, items);
+      res
+        .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
+        .json({ success: true, data: chokepoints });
     } catch (error) {
       next(error);
     }
