@@ -65,7 +65,7 @@ while ((match = blockRe.exec(css))) {
   });
 }
 
-const BACKDROP = hexToRgb("#050d1a"); // --panel-solid
+const BACKDROP = hexToRgb("#111114"); // --panel-solid
 
 const smallText = [];
 const wideTracking = [];

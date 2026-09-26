@@ -1150,18 +1150,18 @@ export default function Dashboard() {
                       >
                         <stop
                           offset="5%"
-                          stopColor="#00e5ff"
+                          stopColor="#e8b34c"
                           stopOpacity={0.35}
                         />
                         <stop
                           offset="95%"
-                          stopColor="#00e5ff"
+                          stopColor="#e8b34c"
                           stopOpacity={0}
                         />
                       </linearGradient>
                     </defs>
                     <CartesianGrid
-                      stroke="rgba(0,229,255,0.12)"
+                      stroke="rgba(232, 179, 76,0.12)"
                       strokeDasharray="3 5"
                       vertical={false}
                     />
@@ -1182,7 +1182,7 @@ export default function Dashboard() {
                     <Tooltip
                       contentStyle={{
                         background: "#04101a",
-                        border: "1px solid rgba(0,229,255,0.4)",
+                        border: "1px solid rgba(232, 179, 76,0.4)",
                         borderRadius: 4,
                         fontSize: 12,
                         fontFamily: "Share Tech Mono, monospace",
@@ -1191,7 +1191,7 @@ export default function Dashboard() {
                     <Area
                       type="monotone"
                       dataKey="signals"
-                      stroke="#00e5ff"
+                      stroke="#e8b34c"
                       fill="url(#signalGradient)"
                       strokeWidth={2}
                     />
