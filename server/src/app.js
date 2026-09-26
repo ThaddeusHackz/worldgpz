@@ -449,7 +449,22 @@ export function createApp({
         ...(snapshot.globalNews || []),
         ...spaceEvents,
         ...providerEvents,
-      ].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      ]
+        // Provenance is surfaced rather than hidden: the bundled baseline rows
+        // are curated watch items, not live reports, and presenting them
+        // identically to live signals is what made the feed read as fake.
+        .map((event) => {
+          const baselineId = String(event?.id ?? "").startsWith("baseline-");
+          const baselineSource = /baseline watch/i.test(
+            event?.sourceName ?? "",
+          );
+          return {
+            ...event,
+            curated: event?.curated ?? (baselineId || baselineSource),
+          };
+        })
+        .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      const curatedCount = events.filter((event) => event.curated).length;
       const critical = events.filter(
         (event) => event.severity === "critical",
       ).length;
@@ -483,6 +498,17 @@ export function createApp({
               sourcesTotal: snapshot.sourceStatus.length,
               riskScore,
               highPriority: high + critical,
+            },
+            provenance: {
+              total: events.length,
+              live: events.length - curatedCount,
+              curated: curatedCount,
+              note:
+                curatedCount === events.length && events.length > 0
+                  ? "Every signal is a bundled baseline watch item — no live feed has reported yet."
+                  : curatedCount > 0
+                    ? `${curatedCount} bundled baseline items mixed with live reports.`
+                    : "All signals are from live feeds.",
             },
             events: events.slice(0, 120),
             news: snapshot.news,

@@ -140,6 +140,30 @@ describe("public API", () => {
       .expect(403);
   });
 
+  it("labels curated baseline rows and reports feed provenance", async () => {
+    const response = await request(app).get("/api/v1/dashboard").expect(200);
+    const { provenance, events } = response.body.data;
+
+    // Every bundled baseline row must be flagged, never presented as live.
+    const baseline = events.filter((event) =>
+      String(event.id ?? "").startsWith("baseline-"),
+    );
+    expect(baseline.length).toBeGreaterThan(0);
+    expect(baseline.every((event) => event.curated === true)).toBe(true);
+
+    // Live rows must not be flagged.
+    const live = events.filter(
+      (event) => !String(event.id ?? "").startsWith("baseline-"),
+    );
+    expect(live.every((event) => event.curated === false)).toBe(true);
+
+    expect(provenance.total).toBe(events.length);
+    expect(provenance.live + provenance.curated).toBe(provenance.total);
+    expect(provenance.curated).toBe(baseline.length);
+    expect(typeof provenance.note).toBe("string");
+    expect(provenance.note.length).toBeGreaterThan(0);
+  });
+
   it("returns dashboard data from curated and live sources", async () => {
     const response = await request(app).get("/api/v1/dashboard").expect(200);
     expect(response.body.data.metrics.activeSignals).toBeGreaterThan(1);

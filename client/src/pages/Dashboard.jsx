@@ -868,6 +868,21 @@ export default function Dashboard() {
             ))}
           </section>
 
+          {dashboard?.provenance && dashboard.provenance.curated > 0 ? (
+            <div
+              className={`provenance-banner ${
+                dashboard.provenance.live === 0 ? "stale" : "mixed"
+              }`}
+            >
+              <span className="provenance-label">
+                {dashboard.provenance.live === 0 ? "NO LIVE FEED" : "MIXED"}
+              </span>
+              <span className="provenance-text">
+                {dashboard.provenance.note}
+              </span>
+            </div>
+          ) : null}
+
           <WireTicker
             news={dashboard?.news ?? []}
             events={dashboard?.events ?? []}
