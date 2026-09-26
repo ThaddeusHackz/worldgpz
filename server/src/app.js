@@ -11,6 +11,7 @@ import jwt from "jsonwebtoken";
 import { createAuthMiddleware } from "./middleware/auth.js";
 import { layerCatalog } from "./data/seed.js";
 import { TrackService } from "./services/track.js";
+import { chokepointStatus, countryRisk } from "./services/situational.js";
 import {
   eventSchema,
   loginSchema,
@@ -179,6 +180,32 @@ export function createApp({
   const app = express();
   const { authenticate, adminOnly } = createAuthMiddleware(config);
   const trackService = new TrackService(config);
+  // Rolling per-country scores so the index can report a real delta pass to
+  // pass. Bounded so a long-running process cannot grow it without limit.
+  const riskHistory = new Map();
+  const MAX_RISK_HISTORY = 500;
+
+  /** Country index + chokepoint picture derived from the same live snapshot. */
+  const situational = (snapshot, curated = []) => {
+    const events = [
+      ...(snapshot?.earthquakes ?? []),
+      ...(snapshot?.natural ?? []),
+      ...(snapshot?.weather ?? []),
+      ...(snapshot?.globalNews ?? []),
+      ...curated,
+    ];
+    const news = snapshot?.news ?? [];
+    const risk = countryRisk(events, news, { history: riskHistory });
+    if (riskHistory.size > MAX_RISK_HISTORY) {
+      for (const key of [...riskHistory.keys()].slice(
+        0,
+        riskHistory.size - MAX_RISK_HISTORY,
+      )) {
+        riskHistory.delete(key);
+      }
+    }
+    return { risk, chokepoints: chokepointStatus(events, news) };
+  };
 
   if (config.trustProxy) app.set("trust proxy", config.trustProxy);
   app.disable("x-powered-by");
@@ -301,7 +328,8 @@ export function createApp({
       time: new Date().toISOString(),
       uptimeSeconds: Math.round(process.uptime()),
       database: config.mongodbUri ? "mongodb-atlas" : "local-json",
-      persistence: config.mongodbUri ? "durable" : "ephemeral",
+      persistence: vault?.persistence?.tier ?? "ephemeral",
+      vaultBackend: vault?.persistence?.backend ?? "none",
     });
   });
 
@@ -421,7 +449,22 @@ export function createApp({
         ...(snapshot.globalNews || []),
         ...spaceEvents,
         ...providerEvents,
-      ].sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      ]
+        // Provenance is surfaced rather than hidden: the bundled baseline rows
+        // are curated watch items, not live reports, and presenting them
+        // identically to live signals is what made the feed read as fake.
+        .map((event) => {
+          const baselineId = String(event?.id ?? "").startsWith("baseline-");
+          const baselineSource = /baseline watch/i.test(
+            event?.sourceName ?? "",
+          );
+          return {
+            ...event,
+            curated: event?.curated ?? (baselineId || baselineSource),
+          };
+        })
+        .sort((a, b) => new Date(b.publishedAt) - new Date(a.publishedAt));
+      const curatedCount = events.filter((event) => event.curated).length;
       const critical = events.filter(
         (event) => event.severity === "critical",
       ).length;
@@ -441,6 +484,7 @@ export function createApp({
         (source) => source.status === "operational",
       ).length;
       const operationalPicture = buildOperationalPicture(events);
+      const picture = situational(snapshot, events);
       res
         .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
         .json({
@@ -455,10 +499,23 @@ export function createApp({
               riskScore,
               highPriority: high + critical,
             },
+            provenance: {
+              total: events.length,
+              live: events.length - curatedCount,
+              curated: curatedCount,
+              note:
+                curatedCount === events.length && events.length > 0
+                  ? "Every signal is a bundled baseline watch item — no live feed has reported yet."
+                  : curatedCount > 0
+                    ? `${curatedCount} bundled baseline items mixed with live reports.`
+                    : "All signals are from live feeds.",
+            },
             events: events.slice(0, 120),
             news: snapshot.news,
             sourceStatus: snapshot.sourceStatus,
             riskBreakdown: riskBreakdown(events),
+            riskIndex: picture.risk,
+            chokepoints: picture.chokepoints,
             space: snapshot.space || null,
             trend: trend(events),
             layers: operationalPicture.layers,
@@ -512,6 +569,32 @@ export function createApp({
         data: snapshot.news,
         generatedAt: snapshot.fetchedAt,
       });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/risk", async (_req, res, next) => {
+    try {
+      const snapshot = await liveSources.snapshot();
+      const { items } = await store.listEvents({ limit: 100 });
+      const { risk } = situational(snapshot, items);
+      res
+        .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
+        .json({ success: true, data: risk });
+    } catch (error) {
+      next(error);
+    }
+  });
+
+  app.get("/api/v1/chokepoints", async (_req, res, next) => {
+    try {
+      const snapshot = await liveSources.snapshot();
+      const { items } = await store.listEvents({ limit: 100 });
+      const { chokepoints } = situational(snapshot, items);
+      res
+        .set("cache-control", "public, max-age=60, stale-while-revalidate=240")
+        .json({ success: true, data: chokepoints });
     } catch (error) {
       next(error);
     }
@@ -851,12 +934,97 @@ export function createApp({
       success: true,
       data: vault ? vault.view() : [],
       meta: {
-        persistence: config.mongodbUri ? "mongodb-atlas" : "local-json",
-        durable: Boolean(config.mongodbUri),
+        persistence: vault?.persistence ?? {
+          tier: "unavailable",
+          backend: "none",
+          survivesRedeploy: false,
+          survivesMachineChange: false,
+        },
+        durable: vault?.persistence?.survivesRedeploy ?? false,
         loadedAt: vault?.loadedAt ?? null,
+        seededFromEnv: vault?.envSeedCount ?? 0,
+        envSeedError: vault?.envSeedError ?? null,
       },
     });
   });
+
+  /**
+   * Export the vault as one encrypted blob for `WORLDGPZ_VAULT`.
+   *
+   * This is how keys become permanent on hosts with ephemeral filesystems:
+   * the operator copies the blob into the platform environment, and every
+   * future cold start reseeds the same credentials.
+   */
+  app.get("/api/admin/keys/export", authenticate, adminOnly, (_req, res) => {
+    if (!vault)
+      return res
+        .status(503)
+        .json({ success: false, error: "Secure vault unavailable" });
+    try {
+      return res.set("cache-control", "no-store").json({
+        success: true,
+        data: {
+          blob: vault.export(),
+          envKey: "WORLDGPZ_VAULT",
+          keyCount: Object.keys(vault.stored).length,
+          exportedAt: new Date().toISOString(),
+        },
+      });
+    } catch (error) {
+      return res
+        .status(400)
+        .json({ success: false, error: error.message || "Export failed" });
+    }
+  });
+
+  /** Import an encrypted vault blob exported from another deployment. */
+  app.post(
+    "/api/admin/keys/import",
+    authenticate,
+    adminOnly,
+    async (req, res, next) => {
+      try {
+        if (!vault)
+          return res
+            .status(503)
+            .json({ success: false, error: "Secure vault unavailable" });
+        const blob = String(req.body?.blob || "").trim();
+        const overwrite = Boolean(req.body?.overwrite);
+        if (!blob)
+          return res
+            .status(400)
+            .json({ success: false, error: "A vault blob is required" });
+
+        const updated = await vault.import(blob, { overwrite });
+        await store.addAudit({
+          actorEmail: req.user.email,
+          action: "settings.import",
+          entityType: "settings",
+          metadata: {
+            keys: updated.touched,
+            overwrite,
+            requestId: req.id,
+          },
+        });
+        try {
+          providers?.invalidate?.();
+          liveSources?.invalidate?.();
+          media?.invalidate?.();
+        } catch {
+          /* best-effort */
+        }
+        return res.set("cache-control", "no-store").json({
+          success: true,
+          data: updated.view,
+          meta: { touched: updated.touched, persistence: vault.persistence },
+        });
+      } catch (error) {
+        if (error.status === 400)
+          return res.status(400).json({ success: false, error: error.message });
+        return next(error);
+      }
+    },
+  );
 
   app.put(
     "/api/admin/keys",
@@ -886,19 +1054,30 @@ export function createApp({
             requestId: req.id,
           },
         });
-        // Warm the provider mesh immediately so new keys go live without
-        // waiting for the next autonomous pulse.
+        // Hard-reset every provider cache so freshly sealed keys are live on
+        // the very next read. Previously the merged-source and adapter caches
+        // kept serving a `not-configured` snapshot built from the old (missing)
+        // credential for the full TTL, so newly pasted keys looked dead.
         try {
-          providers?.status();
+          providers?.invalidate?.();
+          liveSources?.invalidate?.();
+          media?.invalidate?.();
         } catch {
-          /* background warm-up is best-effort */
+          /* cache reset is best-effort; the next pulse recovers it */
         }
+        // Warm the provider mesh immediately so new keys populate without
+        // waiting for the next autonomous pulse.
+        void Promise.allSettled([
+          providers?.status(),
+          liveSources?.snapshot({ fresh: true }),
+          media?.list(),
+        ]).catch(() => {});
         return res.set("cache-control", "no-store").json({
           success: true,
           data: updated.view,
           meta: {
-            persistence: config.mongodbUri ? "mongodb-atlas" : "local-json",
-            durable: Boolean(config.mongodbUri),
+            persistence: vault.persistence,
+            durable: vault.persistence?.survivesRedeploy ?? false,
             savedAt: new Date().toISOString(),
           },
         });

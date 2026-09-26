@@ -87,6 +87,12 @@ export class MediaService {
     return this.config?.youtubeApiKey || "";
   }
 
+  /** Drop cached channel discovery so a newly pasted YouTube key applies now. */
+  invalidate() {
+    this.cache = null;
+    this.cachedAt = 0;
+  }
+
   async #youtube(path, parameters) {
     const url = new URL(`https://www.googleapis.com/youtube/v3/${path}`);
     for (const [key, value] of Object.entries(parameters)) {

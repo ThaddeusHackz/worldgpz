@@ -24,7 +24,7 @@ import { useIss } from "../lib/useIss.js";
 const colors = {
   critical: "#ff2e4d",
   high: "#ffb020",
-  medium: "#58b6ff",
+  medium: "#d8b070",
   low: "#46f0a0",
 };
 
@@ -241,7 +241,7 @@ export default function WorldMap({
           <Polyline
             positions={lockArc}
             pathOptions={{
-              color: "#00e5ff",
+              color: "#e8b34c",
               weight: 1.4,
               opacity: 0.85,
               dashArray: "5 7",
@@ -278,8 +278,8 @@ export default function WorldMap({
             center={[sat.latitude, sat.longitude]}
             radius={3.5}
             pathOptions={{
-              color: "#a78bff",
-              fillColor: "#a78bff",
+              color: "#c9a86a",
+              fillColor: "#c9a86a",
               fillOpacity: 0.95,
               weight: 1,
             }}
@@ -331,7 +331,19 @@ export default function WorldMap({
 
 function SatMarker() {
   const { fix, status } = useIss();
-  if (status !== "locked" || !fix) return null;
+  // Defence in depth: useIss now validates, but a bad coordinate here would
+  // throw inside Leaflet's Marker and blank the entire map.
+  const lat = Number(fix?.latitude);
+  const lng = Number(fix?.longitude);
+  if (
+    status !== "locked" ||
+    !fix ||
+    !Number.isFinite(lat) ||
+    !Number.isFinite(lng) ||
+    Math.abs(lat) > 90 ||
+    Math.abs(lng) > 180
+  )
+    return null;
   return (
     <Marker
       position={[fix.latitude, fix.longitude]}

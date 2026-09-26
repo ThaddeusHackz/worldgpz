@@ -11,6 +11,8 @@
  * provenance (`vault` | `environment` | `unset`).
  */
 
+import { decryptVault, encryptVault } from "./vaultCrypto.js";
+
 const MAX_VALUE_LENGTH = 400;
 
 /** Whitelisted admin-configurable keys, mapped onto live config paths. */
@@ -200,6 +202,38 @@ export class Vault {
       this.envFallback[entry.id] = getPath(config, entry.path) ?? "";
     this.stored = {};
     this.loadedAt = null;
+    /** Where the vault is persisted, reported honestly to the console. */
+    this.persistence = this.#describePersistence();
+  }
+
+  /**
+   * Honest durability report. The console shows this so an operator is never
+   * surprised when a redeploy clears an ephemeral filesystem.
+   */
+  #describePersistence() {
+    if (this.store?.kind === "mongodb")
+      return {
+        tier: "durable",
+        backend: "mongodb",
+        survivesRedeploy: true,
+        survivesMachineChange: true,
+        note: "Keys are stored in MongoDB and load on every boot.",
+      };
+    if (this.config.vaultBlob)
+      return {
+        tier: "durable",
+        backend: "encrypted-env",
+        survivesRedeploy: true,
+        survivesMachineChange: true,
+        note: "Keys are seeded from the encrypted WORLDGPZ_VAULT environment blob.",
+      };
+    return {
+      tier: "ephemeral",
+      backend: this.store?.kind === "memory" ? "memory" : "local-json",
+      survivesRedeploy: false,
+      survivesMachineChange: false,
+      note: "This runtime has no durable store. Export the encrypted vault and set WORLDGPZ_VAULT (or connect MongoDB) so keys survive redeploys.",
+    };
   }
 
   /** Read persisted settings from the store and apply them to the config. */
@@ -210,6 +244,40 @@ export class Vault {
       if (byId.has(id) && typeof value === "string" && value.trim() !== "")
         this.stored[id] = value;
     }
+
+    // Encrypted environment blob: seeds any key the store does not already
+    // hold. This is what makes pasted keys survive an ephemeral-filesystem
+    // redeploy and work identically on another machine.
+    this.envSeedCount = 0;
+    if (this.config.vaultBlob) {
+      try {
+        const seeded = decryptVault(this.config.vaultBlob, this.secret);
+        for (const [id, value] of Object.entries(seeded)) {
+          if (
+            byId.has(id) &&
+            typeof value === "string" &&
+            value.trim() !== "" &&
+            this.stored[id] === undefined
+          ) {
+            this.stored[id] = value;
+            this.envSeedCount += 1;
+          }
+        }
+      } catch (error) {
+        this.envSeedError = error.message;
+      }
+    }
+
+    // Persist merged state so the effective vault is visible to the store and
+    // survives within the lifetime of this filesystem.
+    if (this.envSeedCount > 0) {
+      try {
+        await this.store.saveSettings?.(this.stored);
+      } catch {
+        /* seeding is best-effort; in-memory values still apply this boot */
+      }
+    }
+
     this.apply();
     this.loadedAt = new Date().toISOString();
     return this;
@@ -281,6 +349,50 @@ export class Vault {
       } else {
         this.stored[id] = value;
       }
+      touched.push(id);
+    }
+    if (touched.length) {
+      await this.store.saveSettings?.(this.stored);
+      this.apply();
+    }
+    return { view: this.view(), touched };
+  }
+
+  /**
+   * Encryption secret for vault transport.
+   *
+   * Falls back to the JWT secret so a deployment with only `JWT_SECRET` set
+   * (the common case, including Render's auto-generated value) can still
+   * export and import vaults with zero extra configuration.
+   */
+  get secret() {
+    return this.config.vaultSecret || this.config.jwtSecret || "";
+  }
+
+  /**
+   * Export the effective vault as a single encrypted, portable blob.
+   *
+   * The operator pastes this into `WORLDGPZ_VAULT` in the host environment
+   * (Render → Environment tab). From then on every cold start, redeploy, or
+   * fresh machine seeds the same keys with no database required.
+   */
+  export() {
+    return encryptVault(this.stored, this.secret);
+  }
+
+  /**
+   * Import an encrypted blob, merging it over the current vault.
+   * Existing keys win unless `overwrite` is set, so an import can never
+   * silently destroy a working credential.
+   */
+  async import(blob, { overwrite = false } = {}) {
+    const incoming = decryptVault(blob, this.secret);
+    const touched = [];
+    for (const [id, value] of Object.entries(incoming)) {
+      if (!byId.has(id) || typeof value !== "string" || value.trim() === "")
+        continue;
+      if (!overwrite && this.stored[id] !== undefined) continue;
+      this.stored[id] = value;
       touched.push(id);
     }
     if (touched.length) {

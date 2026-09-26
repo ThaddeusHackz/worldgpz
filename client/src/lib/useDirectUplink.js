@@ -30,30 +30,57 @@ const fetchJson = async (url, options = {}) => {
 
 /* ----------------------------------------------------------- event mappers */
 
-const mapUsgs = (payload) =>
-  (payload?.features || []).slice(0, 40).map((feature) => ({
-    id: `usgs-${feature.id}`,
-    title: feature.properties.title,
-    summary: `Magnitude ${feature.properties.mag?.toFixed(1) ?? "—"} seismic event at a depth of ${feature.geometry.coordinates[2]?.toFixed(1) ?? "—"} km.`,
-    category: "seismic",
-    severity:
-      feature.properties.mag >= 6
-        ? "critical"
-        : feature.properties.mag >= 5
-          ? "high"
-          : "medium",
-    status: feature.properties.tsunami ? "monitoring" : "verified",
-    region: "Global",
-    country: feature.properties.place || "Unknown",
-    latitude: feature.geometry.coordinates[1],
-    longitude: feature.geometry.coordinates[0],
-    magnitude: feature.properties.mag,
-    sourceName: "USGS",
-    sourceUrl: feature.properties.url,
-    publishedAt: new Date(feature.properties.time).toISOString(),
-    live: true,
-    path: "DIRECT",
-  }));
+/**
+ * USGS GeoJSON -> grid events.
+ *
+ * Guarded per feature. A single malformed entry (USGS does emit
+ * `geometry: null`, and `time` can be absent) previously threw inside the
+ * `.map`, and because the caller wraps the whole mapper in one `.catch`,
+ * that discarded the entire batch — up to 40 real earthquakes vanished and
+ * the source silently reported OFFLINE.
+ */
+export const mapUsgs = (payload) =>
+  (Array.isArray(payload?.features) ? payload.features : [])
+    .slice(0, 40)
+    .flatMap((feature) => {
+      const coordinates = feature?.geometry?.coordinates;
+      const properties = feature?.properties;
+      const longitude = Number(coordinates?.[0]);
+      const latitude = Number(coordinates?.[1]);
+      if (
+        !feature?.id ||
+        !Number.isFinite(longitude) ||
+        !Number.isFinite(latitude)
+      )
+        return [];
+
+      const magnitude = Number(properties?.mag);
+      const depth = Number(coordinates?.[2]);
+      const time = new Date(properties?.time);
+      return [
+        {
+          id: `usgs-${feature.id}`,
+          title: properties?.title || `Seismic event ${feature.id}`,
+          summary: `Magnitude ${Number.isFinite(magnitude) ? magnitude.toFixed(1) : "—"} seismic event at a depth of ${Number.isFinite(depth) ? depth.toFixed(1) : "—"} km.`,
+          category: "seismic",
+          severity:
+            magnitude >= 6 ? "critical" : magnitude >= 5 ? "high" : "medium",
+          status: properties?.tsunami ? "monitoring" : "verified",
+          region: "Global",
+          country: properties?.place || "Unknown",
+          latitude,
+          longitude,
+          magnitude: Number.isFinite(magnitude) ? magnitude : null,
+          sourceName: "USGS",
+          sourceUrl: properties?.url || "",
+          publishedAt: Number.isFinite(time.getTime())
+            ? time.toISOString()
+            : new Date().toISOString(),
+          live: true,
+          path: "DIRECT",
+        },
+      ];
+    });
 
 const WEATHER_POINTS = [
   {
@@ -79,7 +106,7 @@ const WEATHER_POINTS = [
   },
 ];
 
-const mapWeather = (payload) => {
+export const mapWeather = (payload) => {
   const responses = Array.isArray(payload) ? payload : [payload];
   return responses.map((item, index) => {
     const location = WEATHER_POINTS[index] || WEATHER_POINTS[0];
@@ -112,7 +139,7 @@ const mapWeather = (payload) => {
   });
 };
 
-const mapEonet = (payload) =>
+export const mapEonet = (payload) =>
   (payload?.events || []).flatMap((event) => {
     const geometry = event.geometry?.at(-1);
     if (!geometry || geometry.type !== "Point") return [];
@@ -154,7 +181,7 @@ const classifyGdelt = (title) => {
   return "diplomacy";
 };
 
-const mapGdelt = (payload) => {
+export const mapGdelt = (payload) => {
   const features = Array.isArray(payload?.features) ? payload.features : [];
   const counts = features
     .map((feature) => Number(feature?.properties?.count) || 0)
@@ -197,7 +224,7 @@ const mapGdelt = (payload) => {
     .slice(0, 40);
 };
 
-const mapSpace = (kpPayload, windPayload) => {
+export const mapSpace = (kpPayload, windPayload) => {
   const kpRows = Array.isArray(kpPayload) ? kpPayload : [];
   const lastKp = kpRows.length > 1 ? Number(kpRows.at(-1)?.[1]) : Number.NaN;
   if (!Number.isFinite(lastKp)) return { events: [], space: null };

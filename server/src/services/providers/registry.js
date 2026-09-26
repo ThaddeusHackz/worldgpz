@@ -48,6 +48,25 @@ export class ProviderRegistry {
     ];
   }
 
+  /**
+   * Hard cache reset used when admin-panel credentials change.
+   *
+   * Every adapter caches its own payload (including `not-configured`), and
+   * `#kickOff` is debounced, so without this a newly pasted key could sit
+   * invisible behind a stale snapshot for minutes. Resetting also clears the
+   * debounce clock so the very next status read triggers a live re-fetch.
+   */
+  invalidate() {
+    for (const service of this.#services()) {
+      service.cache = null;
+      service.cachedAt = 0;
+      service.inFlight = null;
+    }
+    this.media?.invalidate?.();
+    this.liveSources?.invalidate?.();
+    this.lastKick = 0;
+  }
+
   /** Background refresh, debounced, never awaited by requests. */
   #kickOff() {
     const now = Date.now();
@@ -107,14 +126,17 @@ export class ProviderRegistry {
         status: "not-configured",
         checkedAt: null,
       };
-    if (!entry)
+    // A cached entry written before the key existed still says
+    // `not-configured`. Live configuration always outranks stale cache,
+    // otherwise the console reports a working key as dead.
+    if (!entry || entry.status === "not-configured")
       return {
         id: "news",
         name: "NewsAPI",
         group: "News",
         configured: true,
         status: "pending",
-        checkedAt: null,
+        checkedAt: entry?.checkedAt || null,
       };
     return {
       id: "news",

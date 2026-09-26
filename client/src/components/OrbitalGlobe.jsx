@@ -6,7 +6,7 @@ import { titleCase } from "../lib/format.js";
 const SEVERITY_COLORS = {
   critical: "#ff2e4d",
   high: "#ffb020",
-  medium: "#58b6ff",
+  medium: "#d8b070",
   low: "#46f0a0",
 };
 
@@ -165,9 +165,9 @@ export default function OrbitalGlobe({
         cy,
         radius,
       );
-      body.addColorStop(0, "rgba(0, 60, 92, 0.5)");
-      body.addColorStop(0.7, "rgba(2, 14, 26, 0.82)");
-      body.addColorStop(1, "rgba(1, 6, 12, 0.95)");
+      body.addColorStop(0, "rgba(86, 64, 26, 0.5)");
+      body.addColorStop(0.7, "rgba(12, 12, 14, 0.82)");
+      body.addColorStop(1, "rgba(8, 8, 10, 0.95)");
       context.beginPath();
       context.arc(cx, cy, radius, 0, Math.PI * 2);
       context.fillStyle = body;
@@ -176,15 +176,15 @@ export default function OrbitalGlobe({
       // Atmosphere rim
       context.beginPath();
       context.arc(cx, cy, radius, 0, Math.PI * 2);
-      context.strokeStyle = `rgba(0, 229, 255, ${scanning ? 0.75 : 0.4})`;
+      context.strokeStyle = `rgba(232, 179, 76, ${scanning ? 0.75 : 0.4})`;
       context.lineWidth = 1.4;
-      context.shadowColor = "rgba(0, 229, 255, 0.7)";
+      context.shadowColor = "rgba(232, 179, 76, 0.7)";
       context.shadowBlur = scanning ? 26 : 14;
       context.stroke();
       context.shadowBlur = 0;
 
       // Graticule (every 30°)
-      context.strokeStyle = "rgba(0, 229, 255, 0.1)";
+      context.strokeStyle = "rgba(232, 179, 76, 0.1)";
       context.lineWidth = 1;
       for (let latDelta = -60; latDelta <= 60; latDelta += 30) {
         context.beginPath();
@@ -244,14 +244,14 @@ export default function OrbitalGlobe({
         );
         if (point.z <= 0.02) continue;
         const shade = 0.16 + point.z * 0.6;
-        context.fillStyle = `rgba(0, 229, 255, ${shade.toFixed(3)})`;
+        context.fillStyle = `rgba(232, 179, 76, ${shade.toFixed(3)})`;
         context.fillRect(point.x - 0.9, point.y - 0.9, 1.8, 1.8);
       }
 
       // HQ → target trace
       if (trace) {
         context.setLineDash([3, 5]);
-        context.strokeStyle = "rgba(0, 229, 255, 0.75)";
+        context.strokeStyle = "rgba(232, 179, 76, 0.75)";
         context.lineWidth = 1.2;
         context.beginPath();
         let started = false;
@@ -313,7 +313,7 @@ export default function OrbitalGlobe({
         if (focusedEvent?.id === event.id) {
           context.beginPath();
           context.arc(point.x, point.y, 9, 0, Math.PI * 2);
-          context.strokeStyle = "#00e5ff";
+          context.strokeStyle = "#e8b34c";
           context.lineWidth = 1.4;
           context.stroke();
         }

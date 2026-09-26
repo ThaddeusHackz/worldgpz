@@ -44,6 +44,21 @@ export const config = {
   mongodbDb: process.env.MONGODB_DB || "worldgpz",
   localDataFile:
     process.env.LOCAL_DATA_FILE || path.join(root, "server/data/worldgpz.json"),
+  /**
+   * Encrypted vault blob. When set, it seeds admin-pasted API keys at boot so
+   * they survive redeploys and machine changes on ephemeral filesystems.
+   * Export it from the admin console → Secure Uplink → Export vault.
+   */
+  vaultBlob: (process.env.WORLDGPZ_VAULT || "").trim(),
+  /**
+   * Secret used to encrypt/decrypt the vault blob. Defaults to JWT_SECRET so
+   * a deployment works with no extra configuration; set WORLDGPZ_VAULT_SECRET
+   * to rotate vault transport independently of sessions.
+   */
+  vaultSecret:
+    process.env.WORLDGPZ_VAULT_SECRET ||
+    process.env.JWT_SECRET ||
+    "development-only-secret-change-before-production",
   sourceCacheSeconds: numberFromEnv(process.env.SOURCE_CACHE_SECONDS, 300),
   fetchTimeoutMs: numberFromEnv(process.env.FETCH_TIMEOUT_MS, 8000),
   newsApiKey: process.env.NEWS_API_KEY || "",

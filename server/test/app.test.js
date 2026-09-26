@@ -140,6 +140,30 @@ describe("public API", () => {
       .expect(403);
   });
 
+  it("labels curated baseline rows and reports feed provenance", async () => {
+    const response = await request(app).get("/api/v1/dashboard").expect(200);
+    const { provenance, events } = response.body.data;
+
+    // Every bundled baseline row must be flagged, never presented as live.
+    const baseline = events.filter((event) =>
+      String(event.id ?? "").startsWith("baseline-"),
+    );
+    expect(baseline.length).toBeGreaterThan(0);
+    expect(baseline.every((event) => event.curated === true)).toBe(true);
+
+    // Live rows must not be flagged.
+    const live = events.filter(
+      (event) => !String(event.id ?? "").startsWith("baseline-"),
+    );
+    expect(live.every((event) => event.curated === false)).toBe(true);
+
+    expect(provenance.total).toBe(events.length);
+    expect(provenance.live + provenance.curated).toBe(provenance.total);
+    expect(provenance.curated).toBe(baseline.length);
+    expect(typeof provenance.note).toBe("string");
+    expect(provenance.note.length).toBeGreaterThan(0);
+  });
+
   it("returns dashboard data from curated and live sources", async () => {
     const response = await request(app).get("/api/v1/dashboard").expect(200);
     expect(response.body.data.metrics.activeSignals).toBeGreaterThan(1);
@@ -418,5 +442,74 @@ describe("secure uplink vault (admin API keys)", () => {
       .set("Authorization", `Bearer ${token}`)
       .send({ keys: { AI_MODEL: "x".repeat(401) } })
       .expect(400);
+  });
+
+  it("reports honest persistence metadata", async () => {
+    const response = await request(app)
+      .get("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    const persistence = response.body.meta.persistence;
+    expect(persistence).toHaveProperty("tier");
+    expect(persistence).toHaveProperty("survivesRedeploy");
+    expect(persistence).toHaveProperty("survivesMachineChange");
+    expect(typeof persistence.survivesRedeploy).toBe("boolean");
+  });
+
+  it("exports an encrypted blob that carries no plaintext", async () => {
+    await request(app)
+      .put("/api/admin/keys")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ keys: { FINNHUB_API_KEY: "plain-finnhub-secret" } })
+      .expect(200);
+
+    const response = await request(app)
+      .get("/api/admin/keys/export")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+
+    expect(response.body.data.envKey).toBe("WORLDGPZ_VAULT");
+    expect(response.body.data.blob.startsWith("wgv1.")).toBe(true);
+    expect(response.body.data.keyCount).toBeGreaterThanOrEqual(1);
+    expect(JSON.stringify(response.body)).not.toContain("plain-finnhub-secret");
+  });
+
+  it("restores a vault on a second machine via import", async () => {
+    const exported = await request(app)
+      .get("/api/admin/keys/export")
+      .set("Authorization", `Bearer ${token}`)
+      .expect(200);
+    const blob = exported.body.data.blob;
+
+    // Simulate a different deployment: fresh config + fresh store, same JWT.
+    const remoteConfig = {
+      ...testConfig,
+      newsApiKey: "",
+      finnhubApiKey: "",
+    };
+    const remoteStore = await new Store({
+      localDataFile: ":memory:",
+      admin: testConfig.admin,
+    }).init();
+    const remoteVault = await new Vault(remoteConfig, remoteStore).load();
+    expect(remoteConfig.finnhubApiKey).toBe("");
+
+    const result = await remoteVault.import(blob);
+    expect(result.touched).toContain("FINNHUB_API_KEY");
+    expect(remoteConfig.finnhubApiKey).toBe("plain-finnhub-secret");
+  });
+
+  it("guards the import endpoint against bad input", async () => {
+    await request(app)
+      .post("/api/admin/keys/import")
+      .set("Authorization", `Bearer ${token}`)
+      .send({})
+      .expect(400);
+    await request(app)
+      .post("/api/admin/keys/import")
+      .set("Authorization", `Bearer ${token}`)
+      .send({ blob: "wgv1.not.a.real.blob" })
+      .expect(400);
+    await request(app).post("/api/admin/keys/import").expect(401);
   });
 });

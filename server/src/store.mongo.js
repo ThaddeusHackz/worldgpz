@@ -37,6 +37,8 @@ export class MongoStore {
     this.admin = admin;
     this.client = null;
     this.db = null;
+    /** Identifies the backend for the console's durability report. */
+    this.kind = "mongodb";
   }
 
   async init() {

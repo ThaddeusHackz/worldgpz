@@ -233,7 +233,19 @@ describe("page render smoke", () => {
           value: null,
         },
       ],
-      meta: { persistence: "mongodb-atlas", durable: true, loadedAt: now },
+      meta: {
+        persistence: {
+          tier: "durable",
+          backend: "mongodb",
+          survivesRedeploy: true,
+          survivesMachineChange: true,
+          note: "Keys are stored in MongoDB and load on every boot.",
+        },
+        durable: true,
+        loadedAt: now,
+        seededFromEnv: 0,
+        envSeedError: null,
+      },
     };
     const html = renderToString(
       <MemoryRouter>
@@ -247,9 +259,41 @@ describe("page render smoke", () => {
     expect(html).toContain("ENV");
     expect(html).toContain("OFFLINE");
     expect(html).toContain("Save keys to secure storage");
-    expect(html).toContain("MongoDB Atlas — durable cross-machine storage");
+    expect(html).toContain("MongoDB Atlas");
+    expect(html).toContain("durable across redeploys and machines");
+    expect(html).toContain("PERSISTENT");
+    // Encrypted vault transport controls are present.
+    expect(html).toContain("Export encrypted vault");
+    expect(html).toContain("WORLDGPZ_VAULT");
+    expect(html).toContain("Import vault");
     // Plaintext secret must never be rendered; only the mask is allowed.
     expect(html).not.toContain("hunter");
     expect(html).toContain("••••••••abcd");
+  });
+
+  it("warns loudly when the vault is ephemeral", () => {
+    const html = renderToString(
+      <MemoryRouter>
+        <UplinkKeys
+          vault={{
+            data: [],
+            meta: {
+              persistence: {
+                tier: "ephemeral",
+                backend: "local-json",
+                survivesRedeploy: false,
+                survivesMachineChange: false,
+                note: "This runtime has no durable store.",
+              },
+              durable: false,
+              loadedAt: null,
+            },
+          }}
+          onSave={() => {}}
+        />
+      </MemoryRouter>,
+    );
+    expect(html).toContain("NOT durable across redeploys");
+    expect(html).toContain("EPHEMERAL");
   });
 });

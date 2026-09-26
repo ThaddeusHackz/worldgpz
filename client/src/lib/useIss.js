@@ -17,6 +17,20 @@ export function useIss(pollMs = 5000) {
     let alive = true;
     let timer;
 
+    /**
+     * Only accept a fix whose coordinates are real, finite, in-range numbers.
+     *
+     * A 200 response with an unexpected body (rate-limit notice, proxy error
+     * page, upstream schema change) previously produced
+     * `{ latitude: undefined }` and still flipped status to "locked", which
+     * then crashed the map at `fix.latitude.toFixed(2)`.
+     */
+    const validFix = (latitude, longitude) =>
+      Number.isFinite(latitude) &&
+      Number.isFinite(longitude) &&
+      Math.abs(latitude) <= 90 &&
+      Math.abs(longitude) <= 180;
+
     async function acquire() {
       try {
         const response = await fetch(PRIMARY, {
@@ -25,11 +39,14 @@ export function useIss(pollMs = 5000) {
         if (!response.ok) throw new Error(String(response.status));
         const data = await response.json();
         if (!alive) return;
+        const latitude = Number(data.latitude);
+        const longitude = Number(data.longitude);
+        if (!validFix(latitude, longitude)) throw new Error("invalid fix");
         setFix({
-          latitude: data.latitude,
-          longitude: data.longitude,
-          velocity: data.velocity,
-          altitude: data.altitude,
+          latitude,
+          longitude,
+          velocity: Number(data.velocity) || 0,
+          altitude: Number(data.altitude) || 0,
         });
         setStatus("locked");
       } catch {
@@ -37,16 +54,20 @@ export function useIss(pollMs = 5000) {
           const response = await fetch(FALLBACK, {
             signal: AbortSignal.timeout(6000),
           });
+          if (!response.ok) throw new Error(String(response.status));
           const data = await response.json();
           const position = data?.iss_position;
           if (!alive || !position) throw new Error("no fix");
-          setFix({
-            latitude: Number(position.latitude),
-            longitude: Number(position.longitude),
-          });
+          const latitude = Number(position.latitude);
+          const longitude = Number(position.longitude);
+          if (!validFix(latitude, longitude)) throw new Error("invalid fix");
+          setFix({ latitude, longitude });
           setStatus("locked");
         } catch {
-          if (alive) setStatus("offline");
+          if (alive) {
+            setFix(null);
+            setStatus("offline");
+          }
         }
       } finally {
         if (alive) timer = setTimeout(acquire, pollMs);
