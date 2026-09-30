@@ -2,6 +2,66 @@ import { useEffect, useRef, useState } from 'react';
 import * as THREE from 'three';
 
 const COLORS = { seismic: 0xff7167, natural: 0x75d3b4, conflict: 0xf3a352, fire: 0xffa04e, weather: 0x6bbcf2, flight: 0x73c0f5, ship: 0x68d6af, infrastructure: 0xb19cf3 };
+const LANDMASSES = [
+  [[-168, 69], [-150, 72], [-136, 68], [-130, 60], [-124, 55], [-128, 49], [-123, 42], [-117, 33], [-110, 31], [-105, 24], [-97, 19], [-91, 18], [-86, 22], [-82, 26], [-80, 32], [-73, 38], [-66, 45], [-59, 51], [-68, 55], [-80, 53], [-91, 56], [-102, 59], [-114, 64], [-128, 68], [-145, 72]],
+  [[-59, 60], [-49, 59], [-42, 61], [-36, 68], [-25, 72], [-23, 79], [-40, 83], [-53, 80], [-61, 72]],
+  [[-99, 19], [-91, 17], [-86, 14], [-83, 10], [-77, 8], [-78, 13], [-84, 17], [-92, 19]],
+  [[-81, 12], [-73, 8], [-64, 10], [-56, 6], [-49, 1], [-46, -7], [-42, -18], [-49, -28], [-54, -35], [-59, -41], [-63, -54], [-70, -52], [-73, -42], [-76, -29], [-79, -15]],
+  [[-10, 36], [-10, 44], [-6, 49], [-8, 55], [-1, 58], [5, 54], [8, 59], [15, 56], [18, 61], [27, 58], [32, 65], [43, 67], [55, 68], [72, 72], [94, 74], [113, 70], [130, 63], [145, 59], [159, 57], [170, 52], [165, 46], [151, 44], [140, 48], [131, 42], [125, 34], [121, 24], [115, 20], [111, 24], [106, 21], [104, 15], [100, 12], [98, 19], [91, 22], [86, 21], [81, 8], [77, 8], [72, 14], [69, 22], [61, 25], [55, 24], [51, 28], [47, 30], [44, 38], [40, 40], [35, 37], [31, 35], [28, 41], [21, 40], [17, 37], [13, 38], [10, 43], [5, 43], [2, 41], [-3, 36]],
+  [[-17, 36], [-8, 35], [0, 37], [10, 36], [16, 32], [23, 32], [32, 31], [35, 20], [42, 12], [51, 11], [47, 2], [42, -11], [34, -19], [29, -34], [19, -35], [14, -29], [11, -18], [12, -6], [8, 5], [0, 5], [-5, 10], [-14, 14], [-17, 25]],
+  [[35, 31], [43, 29], [51, 25], [57, 22], [55, 17], [49, 12], [43, 12], [39, 18]],
+  [[67, 24], [72, 21], [77, 8], [81, 7], [88, 20], [85, 24], [80, 29], [75, 33], [72, 29]],
+  [[93, 21], [100, 23], [106, 20], [109, 14], [107, 8], [112, 2], [118, 5], [122, 10], [127, 12], [130, 5], [126, 0], [120, -3], [115, -6], [109, -8], [105, -4], [103, 1], [98, 5], [95, 12]],
+  [[112, -11], [121, -11], [132, -12], [139, -17], [151, -24], [153, -31], [146, -39], [136, -36], [129, -34], [121, -31], [115, -24]],
+  [[-8, 50], [-5, 58], [0, 57], [2, 52]], [[130, 31], [133, 34], [137, 36], [141, 42], [145, 44], [143, 37], [139, 34], [135, 33]],
+  [[-180, -72], [-150, -70], [-120, -73], [-90, -71], [-60, -75], [-30, -72], [0, -74], [30, -71], [60, -74], [90, -71], [120, -73], [150, -70], [180, -72], [180, -90], [-180, -90]],
+];
+
+function createEarthTexture() {
+  const width = 2048;
+  const height = 1024;
+  const canvas = document.createElement('canvas');
+  canvas.width = width;
+  canvas.height = height;
+  const context = canvas.getContext('2d');
+  const ocean = context.createLinearGradient(0, 0, 0, height);
+  ocean.addColorStop(0, '#092028');
+  ocean.addColorStop(0.52, '#0a3034');
+  ocean.addColorStop(1, '#06191f');
+  context.fillStyle = ocean;
+  context.fillRect(0, 0, width, height);
+
+  context.strokeStyle = 'rgba(95, 178, 157, 0.14)';
+  context.lineWidth = 1;
+  for (let x = 0; x <= width; x += width / 36) {
+    context.beginPath(); context.moveTo(x, 0); context.lineTo(x, height); context.stroke();
+  }
+  for (let y = 0; y <= height; y += height / 12) {
+    context.beginPath(); context.moveTo(0, y); context.lineTo(width, y); context.stroke();
+  }
+
+  const project = ([longitude, latitude]) => [((longitude + 180) / 360) * width, ((90 - latitude) / 180) * height];
+  for (const polygon of LANDMASSES) {
+    context.beginPath();
+    polygon.forEach((point, index) => {
+      const [x, y] = project(point);
+      if (index === 0) context.moveTo(x, y); else context.lineTo(x, y);
+    });
+    context.closePath();
+    context.fillStyle = '#244c43';
+    context.shadowColor = 'rgba(78, 214, 164, 0.16)';
+    context.shadowBlur = 7;
+    context.fill();
+    context.shadowBlur = 0;
+    context.strokeStyle = 'rgba(113, 216, 174, 0.62)';
+    context.lineWidth = 2;
+    context.stroke();
+  }
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
+  return texture;
+}
+
 function surfacePoint(latitude, longitude, radius = 1.016) {
   const phi = (90 - latitude) * Math.PI / 180;
   const theta = (longitude + 180) * Math.PI / 180;
@@ -33,7 +93,8 @@ export default function OrbitalGlobe({ state }) {
       container.appendChild(renderer.domElement);
       const world = new THREE.Group();
       scene.add(world);
-      const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), new THREE.MeshPhongMaterial({ color: 0x102b31, emissive: 0x041d1d, shininess: 12, specular: 0x30565b }));
+      const earthTexture = createEarthTexture();
+      const sphere = new THREE.Mesh(new THREE.SphereGeometry(1, 64, 48), new THREE.MeshPhongMaterial({ map: earthTexture, color: 0xd2e6dd, emissive: 0x031312, shininess: 18, specular: 0x456d65 }));
       world.add(sphere);
       const grid = new THREE.Mesh(new THREE.SphereGeometry(1.004, 24, 16), new THREE.MeshBasicMaterial({ color: 0x34776b, wireframe: true, transparent: true, opacity: 0.25 }));
       world.add(grid);
@@ -100,7 +161,11 @@ export default function OrbitalGlobe({ state }) {
         renderer.domElement.removeEventListener('pointerleave', onPointerUp);
         renderer.domElement.removeEventListener('wheel', onWheel);
         renderer.dispose();
-        scene.traverse((object) => { object.geometry?.dispose?.(); if (Array.isArray(object.material)) object.material.forEach((material) => material.dispose()); else object.material?.dispose?.(); });
+        scene.traverse((object) => {
+          object.geometry?.dispose?.();
+          const materials = Array.isArray(object.material) ? object.material : [object.material];
+          for (const material of materials) { material?.map?.dispose?.(); material?.dispose?.(); }
+        });
         if (container.contains(renderer.domElement)) container.removeChild(renderer.domElement);
         sceneRef.current = null;
       };

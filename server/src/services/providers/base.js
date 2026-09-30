@@ -8,6 +8,7 @@ export class BaseProvider {
     this.data = null;
     this.cacheExpiry = 0;
     this.lastSuccess = null;
+    this.lastAttempt = null;
     this.lastError = null;
     this.latencyMs = 0;
     this.inFlight = null;
@@ -49,6 +50,7 @@ export class BaseProvider {
   async #fetchFresh() {
     this.status = 'loading';
     const started = Date.now();
+    this.lastAttempt = started;
     try {
       const data = await this._fetchFresh();
       if (data === undefined || data === null) throw new Error('Provider returned no data');
@@ -97,6 +99,7 @@ export class BaseProvider {
       status: this.status,
       latencyMs: this.latencyMs,
       lastSuccess: this.lastSuccess ? new Date(this.lastSuccess).toISOString() : null,
+      lastAttempt: this.lastAttempt ? new Date(this.lastAttempt).toISOString() : null,
       lastError: this.lastError,
       configured: this.isConfigured,
       cached: this.data !== null,

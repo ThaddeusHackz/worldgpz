@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 
-export default function NewsList({ articles = [] }) {
+export default function NewsList({ articles = [], provider, error }) {
   const [active, setActive] = useState('all');
   const filtered = useMemo(() => active === 'all' ? articles : articles.filter((item) => (item.region || 'GLOBAL').toLowerCase().includes(active)), [active, articles]);
   return (
@@ -15,7 +15,7 @@ export default function NewsList({ articles = [] }) {
           <span><strong>{article.title}</strong><small>{article.source || article.domain || 'Global wire'} <i>·</i> {article.region || 'GLOBAL'}</small></span>
           <span className="news-arrow">↗</span>
         </a>)}
-        {!filtered.length && <div className="mini-empty">No headlines are available yet. GDELT is used when NewsAPI is not configured.</div>}
+        {!filtered.length && <div className="mini-empty" role="status">{error ? `Dashboard request failed: ${error}` : provider?.lastError ? `News sources unavailable: ${provider.lastError}` : provider?.status === 'loading' || provider?.status === 'idle' ? 'Connecting to news feeds…' : 'No headlines match this filter. GDELT is used when NewsAPI is not configured.'}</div>}
       </div>
     </section>
   );

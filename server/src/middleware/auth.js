@@ -26,10 +26,13 @@ export function verifyToken(token) {
   try { return jwt.verify(token, process.env.JWT_SECRET, { issuer: 'worldgpz' }); } catch { return null; }
 }
 
-export function authMiddleware(req, res, next) {
+export function readSessionToken(req) {
   const bearer = req.headers.authorization?.startsWith('Bearer ') ? req.headers.authorization.slice(7) : '';
-  const token = bearer || readCookie(req, SESSION_COOKIE);
-  const payload = verifyToken(token);
+  return bearer || readCookie(req, SESSION_COOKIE);
+}
+
+export function authMiddleware(req, res, next) {
+  const payload = verifyToken(readSessionToken(req));
   if (!payload || payload.role !== 'admin') return res.status(401).json({ error: 'Administrator authentication required.' });
   req.user = { email: payload.sub, name: payload.name, role: payload.role };
   next();

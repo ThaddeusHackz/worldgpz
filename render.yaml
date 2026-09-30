@@ -2,7 +2,7 @@ services:
   - type: web
     name: worldgpz
     runtime: node
-    plan: starter
+    plan: 0.5c-512mb
     region: oregon
     buildCommand: npm ci && npm --prefix client ci && npm run build
     startCommand: npm start
@@ -67,7 +67,8 @@ services:
 
 databases:
   - name: worldgpz-db
-    plan: basic-256mb
+    plan: 0.1c-256mb
+    postgresMajorVersion: "18"
     databaseName: worldgpz
     user: worldgpz
     region: oregon

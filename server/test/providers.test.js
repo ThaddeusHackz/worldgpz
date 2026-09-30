@@ -4,6 +4,9 @@ import { BaseProvider } from '../src/services/providers/base.js';
 import { ProviderRegistry } from '../src/services/providers/registry.js';
 import { NewsProvider } from '../src/services/providers/news.js';
 import { WeatherProvider } from '../src/services/providers/weather.js';
+import { AIProvider } from '../src/services/providers/ai.js';
+import { FlightsProvider } from '../src/services/providers/flights.js';
+import { YouTubeProvider } from '../src/services/providers/media.js';
 import { API_KEY_DEFINITIONS } from '../src/services/keyRegistry.js';
 import { buildChokepoints, buildCountries, buildStrategicRisk } from '../src/services/situational.js';
 import { decryptSecret, encryptSecret, maskSecret } from '../src/lib/vaultCrypto.js';
@@ -91,6 +94,65 @@ test('weather provider retains baseline coverage when the configured primary fee
   } finally {
     globalThis.fetch = originalFetch;
   }
+});
+
+test('OpenSky renews an expired OAuth token once after an unauthorized data request', async () => {
+  const originalFetch = globalThis.fetch;
+  let tokenCalls = 0;
+  let stateCalls = 0;
+  globalThis.fetch = async (input, options = {}) => {
+    const url = String(input);
+    if (url.includes('/token')) {
+      tokenCalls += 1;
+      return new Response(JSON.stringify({ access_token: `access-${tokenCalls}`, expires_in: 300 }), { status: 200 });
+    }
+    stateCalls += 1;
+    if (options.headers?.Authorization === 'Bearer access-1') return new Response('unauthorized', { status: 401 });
+    return new Response(JSON.stringify({ states: [] }), { status: 200 });
+  };
+  try {
+    const provider = new FlightsProvider();
+    provider.setSecretResolver((key) => key === 'OPENSKY_CLIENT_ID' ? 'test-client' : key === 'OPENSKY_CLIENT_SECRET' ? 'test-secret' : undefined);
+    const result = await provider.fetch({ force: true });
+    assert.equal(tokenCalls, 2);
+    assert.equal(stateCalls, 2);
+    assert.deepEqual(result.data, []);
+    assert.equal(provider.status, 'online');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('YouTube marks partially fulfilled regional searches as degraded', async () => {
+  const originalFetch = globalThis.fetch;
+  let calls = 0;
+  globalThis.fetch = async () => {
+    calls += 1;
+    if (calls === 1) return new Response('unavailable', { status: 503 });
+    return new Response(JSON.stringify({ items: [{
+      id: { videoId: `video-${calls}` },
+      snippet: { title: 'Verified live stream', channelTitle: 'Public broadcaster', liveBroadcastContent: 'live' },
+    }] }), { status: 200, headers: { 'content-type': 'application/json' } });
+  };
+  try {
+    const provider = new YouTubeProvider();
+    provider.setSecretResolver(() => 'test-youtube-key');
+    const result = await provider.fetch({ force: true });
+    assert.ok(result.data.length > 0);
+    assert.equal(result.data.partial, true);
+    assert.equal(provider.status, 'degraded');
+  } finally {
+    globalThis.fetch = originalFetch;
+  }
+});
+
+test('local briefing describes headline tone without inventing an elevated threat level', async () => {
+  const provider = new AIProvider(async () => [{ title: 'Routine trade talks resume', region: 'GLOBAL', source: 'Test wire' }]);
+  provider.setSecretResolver(() => undefined);
+  const result = await provider.fetch({ force: true });
+  assert.match(result.data.content, /Headline tone: mixed \/ no clear tilt/);
+  assert.doesNotMatch(result.data.content, /OVERALL THREAT LEVEL/i);
+  assert.equal(result.data.source, 'local-fallback');
 });
 
 test('provider reports missing keys as unconfigured rather than falsely offline', async () => {

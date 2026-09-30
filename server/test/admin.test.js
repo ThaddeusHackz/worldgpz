@@ -58,5 +58,12 @@ test('admin session uses an httpOnly cookie and provider credentials are masked'
   assert.notEqual(key.value, 'unit-test-financial-credential');
   assert.ok(key.value.includes('•'));
   assert.equal(list.persistence, 'memory');
+  const logsResponse = await fetch(`${base}/api/admin/logs`, { headers: { Cookie: session } });
+  const logsPayload = await logsResponse.json();
+  assert.equal(logsResponse.status, 200);
+  assert.ok(logsPayload.logs.some((entry) => entry.path === '/api/auth/login'));
+  const serializedLogs = JSON.stringify(logsPayload);
+  assert.equal(serializedLogs.includes('unit-test-password-only'), false);
+  assert.equal(serializedLogs.includes('unit-test-financial-credential'), false);
   registry.stop();
 });

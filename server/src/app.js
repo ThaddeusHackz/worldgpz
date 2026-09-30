@@ -5,9 +5,9 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
-import { authConfigurationReady, authMiddleware, cookieOptions, issueToken, SESSION_COOKIE, verifyToken } from './middleware/auth.js';
+import { authConfigurationReady, authMiddleware, cookieOptions, issueToken, readSessionToken, SESSION_COOKIE, verifyToken } from './middleware/auth.js';
 import { loginLimiter, apiLimiter } from './middleware/rateLimit.js';
-import { requestLogger } from './middleware/logger.js';
+import { getRecentLogs, requestLogger } from './middleware/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { API_KEY_DEFINITIONS, KEY_DEFINITION_BY_NAME } from './services/keyRegistry.js';
 import { BASELINE_WATCHPOINTS } from './data/baseline.js';
@@ -154,7 +154,7 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
     try { const data = await readProvider(registry, name); res.json(arrayValue(data)); } catch (error) { next(error); }
   });
 
-  app.get('/api/news', async (_req, res, next) => {
+  app.get(['/api/news', '/api/news/headlines'], async (_req, res, next) => {
     try {
       const data = await readProvider(registry, 'news');
       sendCollection(res, registry.get('news'), arrayValue(data), 'articles');
@@ -251,6 +251,18 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
     } catch (error) { next(error); }
   });
 
+  app.get('/api/situational', async (_req, res, next) => {
+    try {
+      const [events, conflicts, news, ships] = await Promise.all([
+        aggregateEvents(registry), readProvider(registry, 'acled'),
+        readProvider(registry, 'news'), readProvider(registry, 'ships'),
+      ]);
+      const countries = buildCountries({ conflicts: arrayValue(conflicts), events, news: arrayValue(news) });
+      const chokepoints = buildChokepoints({ events, news: arrayValue(news), ships: arrayValue(ships) });
+      res.json({ countries, chokepoints, strategicRisk: buildStrategicRisk(countries, chokepoints, events), generatedAt: new Date().toISOString() });
+    } catch (error) { next(error); }
+  });
+
   app.get('/api/situational/countries', async (_req, res, next) => {
     try {
       const [conflicts, events, news] = await Promise.all([
@@ -265,15 +277,18 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
       res.json(buildChokepoints({ events, news: arrayValue(news), ships: arrayValue(ships) }));
     } catch (error) { next(error); }
   });
-  app.get('/api/situational/risk', async (_req, res, next) => {
+  const strategicRiskHandler = async (_req, res, next) => {
     try {
-      const [events, conflicts, news, ships] = await Promise.all([aggregateEvents(registry), readProvider(registry, 'acled'), readProvider(registry, 'news'), readProvider(registry, 'ships')]);
+      const [events, conflicts, news, ships] = await Promise.all([
+        aggregateEvents(registry), readProvider(registry, 'acled'),
+        readProvider(registry, 'news'), readProvider(registry, 'ships'),
+      ]);
       const countries = buildCountries({ conflicts: arrayValue(conflicts), events, news: arrayValue(news) });
       const chokepoints = buildChokepoints({ events, news: arrayValue(news), ships: arrayValue(ships) });
       res.json(buildStrategicRisk(countries, chokepoints, events));
     } catch (error) { next(error); }
-  });
-  app.get('/api/situational/strategic-risk', (req, res) => app.handle({ ...req, url: '/api/situational/risk', method: 'GET' }, res));
+  };
+  app.get(['/api/situational/risk', '/api/situational/strategic-risk'], strategicRiskHandler);
 
   app.get('/api/stream', (_req, res) => pulse.addClient(res));
 
@@ -294,10 +309,7 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
     } catch (error) { res.status(503).json({ error: error.message }); }
   });
   app.get('/api/auth/me', (req, res) => {
-    const cookieHeader = req.headers.cookie || '';
-    const cookie = cookieHeader.split(';').map((part) => part.trim()).find((part) => part.startsWith(`${SESSION_COOKIE}=`));
-    const token = cookie ? decodeURIComponent(cookie.slice(SESSION_COOKIE.length + 1)) : '';
-    const payload = verifyToken(token);
+    const payload = verifyToken(readSessionToken(req));
     if (!payload || payload.role !== 'admin') return res.status(401).json({ error: 'Not signed in.' });
     res.json({ user: { email: payload.sub, name: payload.name, role: payload.role } });
   });
@@ -317,7 +329,18 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
     const result = await provider.fetch({ force: true });
     res.json({ name: provider.name, status: provider.status, latencyMs: provider.latencyMs, dataPoints: Array.isArray(result.data) ? result.data.length : result.data ? 1 : 0, error: result.error || null });
   });
-  app.get('/api/admin/logs', authMiddleware, (_req, res) => res.json({ logs: [], message: 'Provider errors are available in the source-health panel and current provider report.' }));
+  app.get('/api/admin/logs', authMiddleware, (_req, res) => {
+    const providerErrors = registry.getHealthReport().filter((provider) => provider.lastError).map((provider) => ({
+      id: `provider-${provider.name}-${provider.lastAttempt || 'unknown'}`,
+      timestamp: provider.lastAttempt || provider.lastSuccess || new Date().toISOString(),
+      level: provider.status === 'offline' ? 'error' : 'warn', type: 'provider',
+      provider: provider.name, message: provider.lastError,
+    }));
+    const logs = [...getRecentLogs(100), ...providerErrors]
+      .sort((left, right) => Date.parse(right.timestamp) - Date.parse(left.timestamp))
+      .slice(0, 100);
+    res.json({ logs, retention: 'In-memory operational records; recent request metadata and current provider errors. Resets on restart.', generatedAt: new Date().toISOString() });
+  });
 
   app.get('/api/admin/keys', authMiddleware, (_req, res) => {
     const keys = API_KEY_DEFINITIONS.map((definition) => {

@@ -11,7 +11,11 @@ function summarizeLocally(headlines) {
     const title = String(item.title || '').replace(/\s+/g, ' ').slice(0, 230);
     return `• [${region}] ${title}${item.source ? ` — ${item.source}` : ''}`;
   });
-  return `${bullets.join('\n')}\n\nOVERALL THREAT LEVEL: ELEVATED\nAutomated local digest from headlines; this is not an AI-generated assessment.`;
+  const corpus = selected.map((item) => String(item.title || '')).join(' ').toLowerCase();
+  const riskTerms = (corpus.match(/attack|war|killed|crisis|strike|crash|threat|disaster|earthquake|fire|sanction|fatal|conflict|violence/g) || []).length;
+  const constructiveTerms = (corpus.match(/agreement|ceasefire|recovery|growth|surplus|peace|rescue|aid|cooperation|record high/g) || []).length;
+  const tone = riskTerms > constructiveTerms + 1 ? 'more risk-related terms' : constructiveTerms > riskTerms + 1 ? 'more constructive terms' : 'mixed / no clear tilt';
+  return `${bullets.join('\n')}\n\nHeadline tone: ${tone} (simple keyword heuristic).\nThis local digest is not a verified threat assessment; confirm claims with the linked sources.`;
 }
 
 export class AIProvider extends BaseProvider {

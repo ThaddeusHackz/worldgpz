@@ -12,7 +12,7 @@
     "dev": "node --watch server/src/index.js",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
-    "test": "node --test server/test/*.test.js",
+    "test": "node --test server/test/*.test.js client/test/*.test.js",
     "test:providers": "node --test server/test/providers.test.js",
     "seed": "node server/src/data/seed.js",
     "forensic-scan": "node scripts/forensic-scan.mjs"

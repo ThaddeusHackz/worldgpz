@@ -286,7 +286,7 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .health-grid { display: grid; grid-template-columns: repeat(3,minmax(0,1fr)); gap: 4px; }
 .health-cell { min-width: 0; min-height: 31px; display: flex; align-items: center; gap: 6px; padding: 4px 5px; border: 1px solid rgba(130,170,160,.075); border-radius: 3px; background: rgba(255,255,255,.012); }
 .health-dot { width: 5px; height: 5px; flex: 0 0 5px; border-radius: 50%; background: #61746e; }
-.health-cell-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }.health-cell-copy strong { overflow: hidden; color: #aabbb4; font-size: 7px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }.health-cell-copy small { color: #6c8079; font: 6px var(--mono); text-transform: uppercase; }
+.health-cell-copy { min-width: 0; flex: 1; display: flex; flex-direction: column; overflow: hidden; }.health-cell-copy strong { overflow: hidden; color: #aabbb4; font-size: 7px; font-weight: 600; white-space: nowrap; text-overflow: ellipsis; }.health-cell-copy small { color: #6c8079; font: 6px var(--mono); text-transform: uppercase; }.health-cell-copy .health-detail { display: block; overflow: hidden; color: #db8f84; font: 6px/1.35 var(--mono); text-overflow: ellipsis; white-space: nowrap; }
 .health-points { color: #778c85; font: 7px var(--mono); }
 .tone-green .health-dot { background: var(--green); box-shadow: 0 0 7px #43d9a055; }.tone-green .health-cell-copy small { color: #83c7a7; }
 .tone-amber .health-dot { background: var(--amber); box-shadow: 0 0 6px #f1bc6855; }.tone-amber .health-cell-copy small { color: #d8b477; }
@@ -368,6 +368,16 @@ button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visib
 .provider-refresh { margin-top: 8px; padding: 4px 6px; border: 1px solid var(--line); border-radius: 3px; color: #89a59a; background: transparent; cursor: pointer; font: 7px var(--mono); }.provider-refresh:hover { color: var(--green); border-color: rgba(67,217,160,.35); }.provider-refresh:disabled { opacity: .5; }
 .admin-message { margin: 12px 0; padding: 9px 11px; border: 1px solid rgba(67,217,160,.18); border-radius: 4px; color: #a7d5be; background: rgba(67,217,160,.05); font: 9px var(--mono); }
 .admin-hint { display: flex; gap: 9px; margin-top: 18px; padding: 12px; border: 1px solid rgba(241,188,104,.18); border-radius: 4px; color: #c7aa72; background: rgba(241,188,104,.04); }.admin-hint > span { font-size: 16px; }.admin-hint p { margin: 0; color: #a59470; font-size: 9px; line-height: 1.6; }
+.admin-provider-section + .admin-provider-section { margin-top: 28px; }
+.admin-log-list { max-height: 350px; overflow-y: auto; border: 1px solid var(--line); border-radius: 4px; background: rgba(8,18,21,.66); }
+.admin-log-row { display: grid; grid-template-columns: 76px 48px minmax(0,1fr); align-items: start; gap: 9px; padding: 9px 10px; border-bottom: 1px solid rgba(130,170,160,.08); }
+.admin-log-row:last-child { border-bottom: 0; }
+.admin-log-row > time { padding-top: 1px; color: #71837c; font: 7px var(--mono); }
+.admin-log-level { color: #91b6a3; font: 7px var(--mono); text-transform: uppercase; }
+.admin-log-level.level-warn { color: var(--amber); }.admin-log-level.level-error { color: var(--red); }
+.admin-log-copy { min-width: 0; display: flex; flex-direction: column; gap: 3px; }
+.admin-log-copy strong { overflow: hidden; color: #bdccc5; font: 7px var(--mono); text-overflow: ellipsis; white-space: nowrap; }
+.admin-log-copy small { overflow-wrap: anywhere; color: #72847e; font: 7px/1.5 var(--mono); }
 .admin-footer { padding: 14px 20px; border-top: 1px solid var(--line); color: #5c716a; text-align: center; font: 8px var(--mono); letter-spacing: .8px; }
 
 .credential-notice { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 14px; padding: 10px 12px; border: 1px solid rgba(112,198,221,.16); border-radius: 4px; color: var(--cyan); background: rgba(112,198,221,.035); }.credential-notice > span { font-size: 15px; }.credential-notice p { margin: 0; color: #91a39e; font-size: 9px; line-height: 1.6; }.credential-notice strong { color: #97d5dc; font: 8px var(--mono); letter-spacing: .6px; }

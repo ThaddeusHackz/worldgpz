@@ -4,9 +4,9 @@ function threatFrom(content = '') {
   return content.match(/(?:THREAT|SIGNAL) LEVEL\s*[:—-]?\s*(LOW|ELEVATED|HIGH|CRITICAL)/i)?.[1]?.toUpperCase() || 'MONITOR';
 }
 
-export default function AIBriefing({ briefing }) {
+export default function AIBriefing({ briefing, provider, error }) {
   const [expanded, setExpanded] = useState(false);
-  const content = briefing?.content || 'Collecting the latest headlines for a global digest…';
+  const content = briefing?.content || (error ? `Briefing request failed: ${error}` : provider?.lastError ? `Briefing source unavailable: ${provider.lastError}` : 'Collecting the latest headlines for a global digest…');
   const level = threatFrom(content);
   const lines = content.split('\n').filter(Boolean);
   return (

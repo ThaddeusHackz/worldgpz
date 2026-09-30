@@ -57,12 +57,38 @@ test('events API combines provider records and labels static context points', as
   assert.equal(payload.events[0].type, 'seismic');
 });
 
+test('news headline alias and situational snapshot expose the documented dashboard feeds', async (t) => {
+  const registry = mockRegistry();
+  const app = createApp({ registry, store: { persistent: false }, vault: {}, pulse: { addClient() {} }, startedAt: Date.now() });
+  const base = await withServer(t, app);
+  const headlines = await fetch(`${base}/api/news/headlines`);
+  assert.equal(headlines.status, 200);
+  assert.equal((await headlines.json()).articles[0].title, 'Test headline');
+  const situational = await fetch(`${base}/api/situational`);
+  const snapshot = await situational.json();
+  assert.equal(situational.status, 200);
+  assert.equal(snapshot.countries.length, 31);
+  assert.equal(snapshot.chokepoints.length, 13);
+  assert.match(snapshot.strategicRisk.note, /not an official/);
+});
+
 test('protected admin routes reject unauthenticated requests', async (t) => {
   const registry = mockRegistry();
   const app = createApp({ registry, store: { persistent: false }, vault: {}, pulse: { addClient() {} }, startedAt: Date.now() });
   const base = await withServer(t, app);
   const response = await fetch(`${base}/api/admin`);
   assert.equal(response.status, 401);
+  const logs = await fetch(`${base}/api/admin/logs`);
+  assert.equal(logs.status, 401);
+});
+
+test('malformed session cookies fail closed without crashing the auth status endpoint', async (t) => {
+  const registry = mockRegistry();
+  const app = createApp({ registry, store: { persistent: false }, vault: {}, pulse: { addClient() {} }, startedAt: Date.now() });
+  const base = await withServer(t, app);
+  const response = await fetch(`${base}/api/auth/me`, { headers: { Cookie: 'worldgpz_session=%E0%A4%A' } });
+  assert.equal(response.status, 401);
+  assert.match((await response.json()).error, /not signed in/i);
 });
 
 test('admin login fails closed when deployment authentication is not configured', async (t) => {

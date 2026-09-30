@@ -4,7 +4,7 @@ const REGIONS = [
   ['all', 'ALL'], ['middle-east', 'MIDDLE EAST'], ['europe', 'EUROPE'], ['americas', 'AMERICAS'], ['asia', 'ASIA'], ['space', 'SPACE'],
 ];
 
-export default function YouTubePlayer({ webcams = [], status = 'unconfigured' }) {
+export default function YouTubePlayer({ webcams = [], status = 'unconfigured', error }) {
   const [region, setRegion] = useState('all');
   const [active, setActive] = useState(null);
   const visible = useMemo(() => region === 'all' ? webcams : webcams.filter((webcam) => webcam.region === region), [region, webcams]);
@@ -24,7 +24,7 @@ export default function YouTubePlayer({ webcams = [], status = 'unconfigured' })
           <span className="webcam-card-info"><strong>{cam.title}</strong><small>{cam.channel} · {cam.regionLabel || cam.region}</small></span>
           <span className="webcam-live-tag">LIVE</span>
         </button>)}
-        {!visible.length && <div className="webcam-empty"><span>◉</span><strong>{status === 'unconfigured' ? 'Live video is not configured' : 'No live streams returned'}</strong><small>Set YOUTUBE_API_KEY to search for live public streams.</small><a href="https://www.youtube.com/results?search_query=live+world+news" target="_blank" rel="noreferrer">Browse live streams on YouTube ↗</a></div>}
+        {!visible.length && <div className="webcam-empty" role="status"><span>◉</span><strong>{status === 'unconfigured' ? 'Live video is not configured' : status === 'loading' || status === 'idle' ? 'Connecting to live video sources' : 'No live streams returned'}</strong><small>{error || (status === 'unconfigured' ? 'Set YOUTUBE_API_KEY to search for live public streams.' : 'The provider may have no matching live broadcasts or may be temporarily unavailable.')}</small><a href="https://www.youtube.com/results?search_query=live+world+news" target="_blank" rel="noreferrer">Browse live streams on YouTube ↗</a></div>}
       </div>
       <div className="panel-note">Streams are surfaced through the YouTube Data API; availability is controlled by each channel.</div>
     </section>

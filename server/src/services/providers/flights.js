@@ -31,7 +31,17 @@ export class FlightsProvider extends BaseProvider {
     const token = await this.authenticate();
     const [lamin, lomin, lamax, lomax] = parseBbox(process.env.OPENSKY_BBOX);
     const params = new URLSearchParams({ lamin: String(lamin), lomin: String(lomin), lamax: String(lamax), lomax: String(lomax) });
-    const response = await fetchJson(`https://opensky-network.org/api/states/all?${params}`, { headers: { Authorization: `Bearer ${token}` } });
+    const url = `https://opensky-network.org/api/states/all?${params}`;
+    let response;
+    try {
+      response = await fetchJson(url, { headers: { Authorization: `Bearer ${token}` } });
+    } catch (error) {
+      if (!/HTTP 401\b/.test(error.message)) throw error;
+      this.token = null;
+      this.tokenExpiry = 0;
+      const renewedToken = await this.authenticate();
+      response = await fetchJson(url, { headers: { Authorization: `Bearer ${renewedToken}` } });
+    }
     return (response.states || []).map((state) => {
       const callsign = String(state[1] || '').trim();
       const latitude = safeNumber(state[6]);

@@ -28,6 +28,7 @@ export default function Dashboard() {
   const [helpOpen, setHelpOpen] = useState(false);
   const { data, refreshing, refreshAll, connected } = useDashboardData(streamEnabled);
   const online = data.health.filter((provider) => ['online', 'degraded'].includes(provider.status)).length;
+  const providerHealth = (name) => data.health.find((provider) => provider.name === name);
   const visibleSuggestions = useMemo(() => search.trim() ? SEARCH_LOCATIONS.filter(([name]) => name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 5) : [], [search]);
 
   const selectEvent = useCallback((event) => {
@@ -64,10 +65,10 @@ export default function Dashboard() {
       <main className="dashboard-main">
         <div className="primary-grid">
           <aside className="left-rail dashboard-scroll" aria-label="Intelligence overview">
-            <AIBriefing briefing={data.briefing} />
+            <AIBriefing briefing={data.briefing} provider={providerHealth('openai')} error={data.errors.briefing} />
             <CountryRisk countries={data.countries} />
             <Chokepoints points={data.chokepoints} />
-            <MarketPulse markets={data.markets} />
+            <MarketPulse markets={data.markets} provider={providerHealth('markets')} error={data.errors.markets} />
           </aside>
           <section className="map-section" aria-label="Global signal map">
             <div className="map-section-head">
@@ -86,17 +87,17 @@ export default function Dashboard() {
           </section>
           <aside className="right-rail dashboard-scroll" aria-label="Live reports">
             <EventStream events={data.events} connected={connected} onSelect={selectEvent} />
-            <NewsList articles={data.news} />
+            <NewsList articles={data.news} provider={providerHealth('news')} error={data.errors.news} />
           </aside>
         </div>
       </main>
       <section className="analytics-rail" aria-label="Data sources and analysis">
         <SignalVelocity events={data.events} />
         <SourceHealth health={data.health} />
-        <EnergyPanel data={data.energy} />
-        <EconomicPanel data={data.economics} />
-        <WeatherPanel weather={data.weather} />
-        <YouTubePlayer webcams={data.webcams} status={data.health.find((provider) => provider.name === 'youtube')?.status} />
+        <EnergyPanel data={data.energy} provider={providerHealth('energy')} error={data.errors.energy} />
+        <EconomicPanel data={data.economics} provider={providerHealth('macro')} error={data.errors.economics} />
+        <WeatherPanel weather={data.weather} provider={providerHealth('weather')} error={data.errors.weather} />
+        <YouTubePlayer webcams={data.webcams} status={providerHealth('youtube')?.status} error={data.errors.webcams || providerHealth('youtube')?.lastError} />
       </section>
       <footer className="app-footer"><span>WORLDGPZ <i>GOD’S EYE</i></span><span>POWERED BY THADDEUSTECHZ INTELLIGENCE SYSTEMS</span><a href="/about">ABOUT / DATA NOTES</a><span className="footer-right">© 2026 THADDEUSTECHZ <b>·</b> EVERY SIGNAL. ONE EYE ON THE WORLD.</span></footer>
       {helpOpen && <div className="modal-backdrop" role="presentation" onClick={() => setHelpOpen(false)}><section className="shortcut-modal" role="dialog" aria-modal="true" aria-labelledby="shortcuts-title" onClick={(event) => event.stopPropagation()}>

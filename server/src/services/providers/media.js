@@ -30,6 +30,7 @@ export class YouTubeProvider extends BaseProvider {
     }));
     const feeds = batches.filter((batch) => batch.status === 'fulfilled').flatMap((batch) => batch.value);
     const unique = [...new Map(feeds.map((feed) => [feed.videoId, feed])).values()];
+    if (batches.some((batch) => batch.status === 'rejected')) unique.partial = true;
     if (!unique.length) {
       const rejected = batches.find((batch) => batch.status === 'rejected');
       throw new Error(rejected?.reason?.message || 'YouTube returned no live streams.');

@@ -4,6 +4,7 @@ const endpoints = [
   ['/api/health', 'System health'], ['/api/providers/health', 'Provider health'], ['/api/events', 'Geospatial events'],
   ['/api/events/seismic', 'Seismic feed'], ['/api/events/natural', 'Natural events'], ['/api/events/conflicts', 'Conflict feed'],
   ['/api/events/fires', 'Fire detections'], ['/api/weather', 'Global weather'], ['/api/news', 'News wire'],
+  ['/api/news/headlines', 'News headline alias'], ['/api/situational', 'Situational snapshot'],
   ['/api/markets', 'Market quotes'], ['/api/energy', 'Energy indicators'], ['/api/economics', 'Economic series'],
   ['/api/flights', 'Aircraft positions'], ['/api/ships', 'Vessel positions'], ['/api/iss', 'ISS position'],
   ['/api/media/webcams', 'Live webcams'], ['/api/intel/briefing', 'AI briefing'],
