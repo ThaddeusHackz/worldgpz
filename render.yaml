@@ -58,11 +58,9 @@ services:
         sync: false
       - key: WINDY_API_KEY
         sync: false
-      - key: AI_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
-      - key: AI_BASE_URL
-        value: https://api.openai.com/v1
-      - key: AI_MODEL
+      - key: OPENAI_MODEL
         value: gpt-4o-mini
 
 databases:

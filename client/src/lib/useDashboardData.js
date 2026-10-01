@@ -10,6 +10,9 @@ const DATA_SOURCES = [
   { key: 'ships', url: '/api/ships', interval: 30_000, transform: (data) => listFrom(data) },
   { key: 'news', url: '/api/news', interval: 15 * 60_000, transform: (data) => listFrom(data, 'articles') },
   { key: 'markets', url: '/api/markets', interval: 60_000, transform: (data) => listFrom(data) },
+  { key: 'predictions', url: '/api/predictions', interval: 10 * 60_000, transform: (data) => listFrom(data, 'markets') },
+  { key: 'outbreaks', url: '/api/outbreaks', interval: 15 * 60_000, transform: (data) => listFrom(data, 'outbreaks') },
+  { key: 'launches', url: '/api/launches', interval: 30 * 60_000, transform: (data) => listFrom(data, 'launches') },
   { key: 'conflicts', url: '/api/events/conflicts', interval: 60 * 60_000, transform: (data) => listFrom(data) },
   { key: 'fires', url: '/api/events/fires', interval: 6 * 60 * 60_000, transform: (data) => listFrom(data) },
   { key: 'iss', url: '/api/iss', interval: 5_000, transform: (data) => data },
@@ -23,8 +26,8 @@ const DATA_SOURCES = [
 ];
 
 const INITIAL_STATE = {
-  events: [], weather: [], flights: [], ships: [], news: [], markets: [], conflicts: [], fires: [], iss: null,
-  briefing: null, health: [], energy: [], economics: [], webcams: [], countries: [], chokepoints: [], errors: {}, lastSync: null,
+  events: [], weather: [], flights: [], ships: [], news: [], markets: [], predictions: [], outbreaks: [], launches: [], conflicts: [], fires: [], iss: null,
+  briefing: null, health: [], energy: [], economics: [], webcams: [], countries: [], chokepoints: [], errors: {}, loaded: {}, lastSync: null,
 };
 
 export function useDashboardData(streamEnabled = true) {
@@ -36,10 +39,10 @@ export function useDashboardData(streamEnabled = true) {
     try {
       const response = await apiRequest(source.url);
       const value = source.transform(response);
-      setData((previous) => ({ ...previous, [source.key]: value, lastSync: Date.now(), errors: { ...previous.errors, [source.key]: null } }));
+      setData((previous) => ({ ...previous, [source.key]: value, lastSync: Date.now(), loaded: { ...previous.loaded, [source.key]: true }, errors: { ...previous.errors, [source.key]: null } }));
       return value;
     } catch (error) {
-      setData((previous) => ({ ...previous, errors: { ...previous.errors, [source.key]: error.message } }));
+      setData((previous) => ({ ...previous, loaded: { ...previous.loaded, [source.key]: true }, errors: { ...previous.errors, [source.key]: error.message } }));
       return null;
     }
   }, []);
@@ -75,6 +78,9 @@ export function useDashboardData(streamEnabled = true) {
     else if (type === 'market') setData((previous) => ({ ...previous, markets: array(payload), lastSync: Date.now() }));
     else if (type === 'briefing') setData((previous) => ({ ...previous, briefing: payload, lastSync: Date.now() }));
     else if (type === 'iss') setData((previous) => ({ ...previous, iss: payload, lastSync: Date.now() }));
+    else if (type === 'predictions') setData((previous) => ({ ...previous, predictions: array(payload), lastSync: Date.now() }));
+    else if (type === 'outbreaks') setData((previous) => ({ ...previous, outbreaks: array(payload), lastSync: Date.now() }));
+    else if (type === 'launches') setData((previous) => ({ ...previous, launches: array(payload), lastSync: Date.now() }));
     else if (type === 'connected' || type === 'heartbeat') setData((previous) => ({ ...previous, lastSync: Date.now() }));
   }, []);
 

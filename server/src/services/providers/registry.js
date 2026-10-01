@@ -11,6 +11,9 @@ import { MacroProvider } from './macro.js';
 import { YouTubeProvider, WindyProvider } from './media.js';
 import { AIProvider } from './ai.js';
 import { ISSProvider } from './iss.js';
+import { OutbreaksProvider } from './outbreaks.js';
+import { PredictionsProvider } from './predictions.js';
+import { LaunchesProvider } from './launches.js';
 
 const DEFAULT_REFRESH_MS = {
   usgs: 5 * 60_000, eonet: 10 * 60_000, gdelt: 10 * 60_000, swpc: 5 * 60_000,
@@ -18,6 +21,7 @@ const DEFAULT_REFRESH_MS = {
   firms: 6 * 60 * 60_000, flights: 30_000, ships: 30_000, markets: 60_000,
   energy: 60 * 60_000, macro: 60 * 60_000, windy: 60 * 60_000,
   youtube: 3 * 60 * 60_000, openai: 30 * 60_000, news: 15 * 60_000, iss: 15_000,
+  outbreaks: 15 * 60_000, predictions: 10 * 60_000, launches: 30 * 60_000,
 };
 
 export class ProviderRegistry {
@@ -38,7 +42,7 @@ export class ProviderRegistry {
       new ReliefWebProvider(), new WeatherProvider(), new NewsProvider(), new ACLEDProvider(),
       new FlightsProvider(), new ShipsProvider(), new FIRMSProvider(), new MarketsProvider(),
       new EnergyProvider(), new MacroProvider(), new WindyProvider(), new YouTubeProvider(),
-      new ISSProvider(),
+      new ISSProvider(), new OutbreaksProvider(), new PredictionsProvider(), new LaunchesProvider(),
     ];
     for (const provider of providers) {
       provider.setSecretResolver(secretResolver);

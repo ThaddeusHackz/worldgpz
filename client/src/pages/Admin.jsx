@@ -50,7 +50,7 @@ export default function Admin() {
       <div className="admin-stats">
         <div><span>PROCESS UPTIME</span><strong>{system ? duration(system.uptime) : '—'}</strong></div>
         <div><span>HEAP USED</span><strong>{system?.memory ? bytes(system.memory.heapUsed) : '—'}</strong></div>
-        <div><span>AVAILABLE UPLINKS</span><strong className="text-green">{providers.filter((item) => ['online', 'degraded'].includes(item.status)).length}<small> / {providers.length || 18}</small></strong></div>
+        <div><span>AVAILABLE UPLINKS</span><strong className="text-green">{providers.filter((item) => ['online', 'degraded'].includes(item.status)).length}<small> / {providers.length || 21}</small></strong></div>
         <div><span>CREDENTIAL STORAGE</span><strong className="storage-mode">{system?.database === 'postgresql' ? 'POSTGRESQL' : 'MEMORY ONLY'}</strong></div>
       </div>
       <section className="admin-provider-section"><div className="admin-section-title"><div><span className="section-kicker">UPLINK DIAGNOSTICS</span><h2>Provider registry</h2></div><button className="secondary-button" onClick={() => void load()}>↻ REFRESH STATUS</button></div>

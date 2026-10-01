@@ -6,13 +6,14 @@ import { fileURLToPath } from 'node:url';
 import bcrypt from 'bcryptjs';
 import crypto from 'node:crypto';
 import { authConfigurationReady, authMiddleware, cookieOptions, issueToken, readSessionToken, SESSION_COOKIE, verifyToken } from './middleware/auth.js';
-import { loginLimiter, apiLimiter } from './middleware/rateLimit.js';
+import { loginLimiter, apiLimiter, analystLimiter } from './middleware/rateLimit.js';
 import { getRecentLogs, requestLogger } from './middleware/logger.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { API_KEY_DEFINITIONS, KEY_DEFINITION_BY_NAME } from './services/keyRegistry.js';
 import { BASELINE_WATCHPOINTS } from './data/baseline.js';
 import { WEATHER_CITIES } from './services/providers/weather.js';
 import { buildChokepoints, buildCountries, buildStrategicRisk } from './services/situational.js';
+import { handleMcpMessage, MCP_PROTOCOL_VERSION } from './services/mcp.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(__dirname, '../../client/dist');
@@ -171,6 +172,52 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
       res.json(result.data || { content: 'Briefing not available.', model: 'none', generatedAt: new Date().toISOString(), headlineCount: 0 });
     } catch (error) { next(error); }
   });
+  app.post('/api/intel/chat', analystLimiter, async (req, res, next) => {
+    const question = typeof req.body?.question === 'string' ? req.body.question.trim() : '';
+    if (question.length < 4 || question.length > 1200) return res.status(400).json({ error: 'Question must be between 4 and 1,200 characters.' });
+    const provider = registry.get('openai');
+    if (!provider?.isOpenAIConfigured) return res.status(503).json({ error: 'OpenAI analyst is unavailable. Configure OPENAI_API_KEY in the server environment or admin key manager.' });
+    try {
+      const [news, events] = await Promise.all([readProvider(registry, 'news'), aggregateEvents(registry)]);
+      const evidence = [
+        ...arrayValue(news).filter((item) => item.url).slice(0, 12),
+        ...events.filter((item) => item.url).slice(0, 8),
+      ];
+      res.json(await provider.askQuestion(question, evidence));
+    } catch (error) {
+      if (/^OpenAI (?:rejected|rate limit)/.test(String(error?.message || ''))) return res.status(502).json({ error: error.message });
+      next(error);
+    }
+  });
+  app.post('/api/intel/country-brief', analystLimiter, async (req, res, next) => {
+    const countryName = typeof req.body?.country === 'string' ? req.body.country.trim().slice(0, 100) : '';
+    if (countryName.length < 2) return res.status(400).json({ error: 'Provide a country name with at least two characters.' });
+    const provider = registry.get('openai');
+    if (!provider?.isOpenAIConfigured) return res.status(503).json({ error: 'OpenAI country briefs require OPENAI_API_KEY configured on the server.' });
+    try {
+      const [news, events] = await Promise.all([readProvider(registry, 'news'), aggregateEvents(registry)]);
+      const countries = buildCountries({ conflicts: events.filter((event) => event.type === 'conflict'), events, news: arrayValue(news) });
+      const country = countries.find((entry) => entry.name.toLowerCase() === countryName.toLowerCase());
+      if (!country) return res.status(404).json({ error: 'Country brief is not available for this country in the current 31-country heuristic index.' });
+      const needle = country.name.toLowerCase();
+      const mentions = (item) => `${item?.country || ''} ${item?.region || ''} ${item?.title || ''} ${item?.description || ''}`.toLowerCase().includes(needle);
+      const evidence = [
+        ...arrayValue(news).filter((item) => mentions(item) && item.url).slice(0, 12),
+        ...events.filter((item) => mentions(item) && item.url).slice(0, 8),
+      ];
+      const question = `Prepare a concise country brief for ${country.name} using only the supplied linked source records. Separate confirmed source reporting from unverified claims, identify important evidence gaps, and do not forecast or assign an official risk rating.`;
+      const answer = await provider.askQuestion(question, evidence);
+      res.json({
+        ...answer,
+        country: country.name,
+        heuristicIndex: { score: country.score, level: country.level, basis: country.basis, components: country.components },
+        signalCounts: { linkedSources: evidence.length, events: events.filter(mentions).length, headlines: arrayValue(news).filter(mentions).length },
+      });
+    } catch (error) {
+      if (/^OpenAI (?:rejected|rate limit)/.test(String(error?.message || ''))) return res.status(502).json({ error: error.message });
+      next(error);
+    }
+  });
   app.get('/api/intel/sentiment', async (_req, res, next) => {
     try {
       const articles = arrayValue(await readProvider(registry, 'news')).slice(0, 100);
@@ -206,8 +253,28 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
   app.get('/api/iss', async (_req, res, next) => {
     try { res.json(await readProvider(registry, 'iss')); } catch (error) { next(error); }
   });
+  app.get('/api/launches', async (_req, res, next) => {
+    try { sendCollection(res, registry.get('launches'), arrayValue(await readProvider(registry, 'launches')), 'launches'); }
+    catch (error) { next(error); }
+  });
   app.get('/api/markets', async (_req, res, next) => {
     try { res.json(arrayValue(await readProvider(registry, 'markets'))); } catch (error) { next(error); }
+  });
+  app.get('/api/markets/watchlist', async (req, res, next) => {
+    try {
+      const symbols = String(req.query.symbols || '').split(',').map((symbol) => symbol.trim()).filter(Boolean).slice(0, 50);
+      if (!symbols.length) return res.status(400).json({ error: 'Provide one or more market symbols.' });
+      const result = await registry.get('markets').fetchWatchlist(symbols);
+      res.json({ quotes: result.data || [], configured: result.configured, cached: Boolean(result.cached), stale: Boolean(result.stale), status: result.configured ? (result.stale || result.error ? 'degraded' : 'online') : 'unconfigured', error: result.error || null });
+    } catch (error) { next(error); }
+  });
+  app.get('/api/predictions', async (_req, res, next) => {
+    try { sendCollection(res, registry.get('predictions'), arrayValue(await readProvider(registry, 'predictions')), 'markets'); }
+    catch (error) { next(error); }
+  });
+  app.get('/api/outbreaks', async (_req, res, next) => {
+    try { sendCollection(res, registry.get('outbreaks'), arrayValue(await readProvider(registry, 'outbreaks')), 'outbreaks'); }
+    catch (error) { next(error); }
   });
   app.get('/api/markets/forex', async (_req, res, next) => {
     try {
@@ -414,6 +481,15 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
       res.json({ keyName: definition.keyName, action: 'deleted', activeSource: vault.source(definition.keyName) });
     } catch (error) { next(error); }
   });
+
+  app.post('/api/mcp', async (req, res) => {
+    res.setHeader('MCP-Protocol-Version', MCP_PROTOCOL_VERSION);
+    const response = await handleMcpMessage(registry, req.body);
+    if (response.notification) return res.status(202).end();
+    const payload = { jsonrpc: '2.0', id: req.body?.id ?? null, ...response };
+    res.status(200).json(payload);
+  });
+  app.get('/api/mcp', (_req, res) => { res.setHeader('Allow', 'POST'); res.status(405).json({ error: 'This stateless MCP endpoint accepts POST requests.' }); });
 
   app.get('/api/config', (_req, res) => res.json({
     author: 'ThaddeusTechz', version: '2.0.0', authConfigured: authConfigurationReady(),
