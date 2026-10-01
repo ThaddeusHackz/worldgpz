@@ -28,6 +28,7 @@ export class PulseEngine {
     const map = {
       seismic: 'usgs', natural: 'eonet', conflict: 'acled', fire: 'firms', weather: 'weather',
       flight: 'flights', ship: 'ships', news: 'news', market: 'markets', briefing: 'openai', iss: 'iss',
+      outbreaks: 'outbreaks', predictions: 'predictions', launches: 'launches',
     };
     for (const [eventName, providerName] of Object.entries(map)) {
       const data = this.registry.getData(providerName);
@@ -39,7 +40,7 @@ export class PulseEngine {
     if (!this.clients.size) return;
     this.#broadcastEvent('health', this.registry.getHealthReport());
     this.#broadcastEvent('pulse', { timestamp: Date.now(), clients: this.clients.size });
-    const mapping = { seismic: 'usgs', natural: 'eonet', conflict: 'acled', fire: 'firms', weather: 'weather', flight: 'flights', ship: 'ships', news: 'news', market: 'markets', briefing: 'openai', iss: 'iss' };
+    const mapping = { seismic: 'usgs', natural: 'eonet', conflict: 'acled', fire: 'firms', weather: 'weather', flight: 'flights', ship: 'ships', news: 'news', market: 'markets', briefing: 'openai', iss: 'iss', outbreaks: 'outbreaks', predictions: 'predictions', launches: 'launches' };
     for (const [eventName, providerName] of Object.entries(mapping)) {
       const data = this.registry.getData(providerName);
       if (data !== null) this.#broadcastEvent(eventName, data);

@@ -21,22 +21,25 @@ export class MarketsProvider extends BaseProvider {
     super('markets', { ttlMs: 60_000, requiredKeys: ['FINNHUB_API_KEY'], emptyValue: [] });
     this.forexData = null;
     this.forexExpiry = 0;
+    this.watchlistCache = new Map();
+  }
+
+  async #fetchQuote(item, token) {
+    const params = new URLSearchParams({ symbol: item.symbol, token });
+    const endpoint = CRYPTO.has(item.type) || item.symbol.startsWith('BINANCE:') ? 'crypto/quote' : 'quote';
+    const quote = await fetchJson(`https://finnhub.io/api/v1/${endpoint}?${params}`);
+    const current = safeNumber(quote.c, 0);
+    if (!current) return null;
+    return {
+      ...item, current, change: safeNumber(quote.d, current - safeNumber(quote.pc, current)),
+      changePercent: safeNumber(quote.dp, 0), high: safeNumber(quote.h), low: safeNumber(quote.l),
+      open: safeNumber(quote.o), previousClose: safeNumber(quote.pc), timestamp: safeNumber(quote.t), source: 'Finnhub',
+    };
   }
 
   async _fetchFresh() {
     const token = this.secret('FINNHUB_API_KEY');
-    const results = await Promise.allSettled(MARKET_WATCHLIST.map(async (item) => {
-      const params = new URLSearchParams({ symbol: item.symbol, token });
-      const endpoint = CRYPTO.has(item.type) ? 'crypto/quote' : 'quote';
-      const quote = await fetchJson(`https://finnhub.io/api/v1/${endpoint}?${params}`);
-      const current = safeNumber(quote.c, 0);
-      if (!current) return null;
-      return {
-        ...item, current, change: safeNumber(quote.d, current - safeNumber(quote.pc, current)),
-        changePercent: safeNumber(quote.dp, 0), high: safeNumber(quote.h), low: safeNumber(quote.l),
-        open: safeNumber(quote.o), previousClose: safeNumber(quote.pc), timestamp: safeNumber(quote.t), source: 'Finnhub',
-      };
-    }));
+    const results = await Promise.allSettled(MARKET_WATCHLIST.map((item) => this.#fetchQuote(item, token)));
     const quotes = results.filter((result) => result.status === 'fulfilled' && result.value).map((result) => result.value);
     if (!quotes.length) {
       const failed = results.find((result) => result.status === 'rejected');
@@ -44,6 +47,39 @@ export class MarketsProvider extends BaseProvider {
     }
     if (quotes.length < MARKET_WATCHLIST.length) quotes.partial = true;
     return quotes;
+  }
+
+  async fetchWatchlist(symbols, { force = false } = {}) {
+    const token = this.secret('FINNHUB_API_KEY');
+    if (!token) return { data: [], configured: false, error: 'FINNHUB_API_KEY is not configured.' };
+    const known = new Map(MARKET_WATCHLIST.map((item) => [item.symbol, item]));
+    const requested = [...new Set((Array.isArray(symbols) ? symbols : []).map((symbol) => String(symbol || '').trim().toUpperCase())
+      .filter((symbol) => /^[A-Z0-9][A-Z0-9._:-]{0,23}$/.test(symbol)))].slice(0, 50);
+    const queue = requested.filter((symbol) => force || !this.watchlistCache.has(symbol) || this.watchlistCache.get(symbol).expiresAt <= Date.now());
+    let cursor = 0;
+    let failures = 0;
+    const worker = async () => {
+      while (cursor < queue.length) {
+        const symbol = queue[cursor++];
+        const existing = this.watchlistCache.get(symbol);
+        const item = known.get(symbol) || { symbol, name: symbol, type: symbol.startsWith('BINANCE:') ? 'crypto' : 'stock' };
+        try {
+          const quote = await this.#fetchQuote(item, token);
+          if (quote) this.watchlistCache.set(symbol, { quote, expiresAt: Date.now() + 5 * 60_000 });
+          else failures += 1;
+        } catch {
+          failures += 1;
+          if (!existing) this.watchlistCache.delete(symbol);
+        }
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(5, queue.length) }, () => worker()));
+    const data = requested.map((symbol) => this.watchlistCache.get(symbol)?.quote).filter(Boolean);
+    const stale = requested.some((symbol) => {
+      const entry = this.watchlistCache.get(symbol);
+      return entry && entry.expiresAt <= Date.now();
+    });
+    return { data, configured: true, cached: queue.length === 0, stale, error: failures ? `${failures} symbol${failures === 1 ? '' : 's'} could not be refreshed.` : null };
   }
 
   async fetchForex({ force = false } = {}) {
