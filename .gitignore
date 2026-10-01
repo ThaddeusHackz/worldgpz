@@ -1,0 +1,14 @@
+node_modules/
+client/node_modules/
+client/dist/
+.env
+.env.*
+!.env.example
+*.log
+coverage/
+.nyc_output/
+.DS_Store
+.vscode/
+.idea/
+server/data/*.json
+server/data/*.db

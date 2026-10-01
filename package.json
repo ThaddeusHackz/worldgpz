@@ -1,0 +1,31 @@
+{
+  "name": "worldgpz",
+  "version": "2.0.0",
+  "description": "WORLDGPZ God's Eye — global signal intelligence dashboard by ThaddeusTechz",
+  "author": "ThaddeusTechz",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "engines": { "node": ">=20" },
+  "scripts": {
+    "start": "node server/src/index.js",
+    "dev": "node --watch server/src/index.js",
+    "dev:client": "npm --prefix client run dev",
+    "build": "npm --prefix client run build",
+    "test": "node --test server/test/*.test.js client/test/*.test.js",
+    "test:providers": "node --test server/test/providers.test.js",
+    "seed": "node server/src/data/seed.js",
+    "forensic-scan": "node scripts/forensic-scan.mjs"
+  },
+  "dependencies": {
+    "bcryptjs": "^2.4.3",
+    "compression": "^1.7.4",
+    "dotenv": "^16.4.7",
+    "express": "^4.21.2",
+    "express-rate-limit": "^7.5.0",
+    "helmet": "^8.0.0",
+    "jsonwebtoken": "^9.0.2",
+    "pg": "^8.13.1",
+    "ws": "^8.18.0"
+  }
+}
