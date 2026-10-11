@@ -13,7 +13,7 @@ const validPoint = (item, latKey = 'latitude', lonKey = 'longitude') => asNumber
 function MapFocus({ focus }) {
   const map = useMap();
   useEffect(() => {
-    if (focus && validPoint(focus)) map.flyTo([Number(focus.latitude), Number(focus.longitude)], Math.max(map.getZoom(), 5), { duration: 1.1 });
+    if (focus && validPoint(focus)) map.flyTo([Number(focus.latitude), Number(focus.longitude)], Math.max(map.getZoom(), 5), { duration: 1.1, animate: !window.matchMedia('(prefers-reduced-motion: reduce)').matches });
   }, [focus, map]);
   return null;
 }
@@ -46,7 +46,7 @@ function LayerControl({ active, setActive, counts }) {
   </div>;
 }
 
-export default function WorldMap({ state, focusEvent }) {
+export default function WorldMap({ state, focusEvent, onSelect }) {
   const [active, setActive] = useState({ seismic: true, natural: true, conflicts: true, fires: true, weather: true, flights: true, ships: true, iss: true, infrastructure: true });
   const events = state.events || [];
   const seismic = useMemo(() => events.filter((event) => event.type === 'seismic'), [events]);
@@ -62,13 +62,13 @@ export default function WorldMap({ state, focusEvent }) {
 
   return <div className="map-canvas">
     <MapContainer center={[21, 13]} zoom={2} minZoom={2} maxZoom={12} scrollWheelZoom zoomControl={false} worldCopyJump className="leaflet-map">
-      <TileLayer url="https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png" subdomains="abcd" maxZoom={19} attribution="© OpenStreetMap contributors © CARTO" />
+      <TileLayer url="https://tile.openstreetmap.org/{z}/{x}/{y}.png" maxZoom={19} attribution='&copy; <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener noreferrer">OpenStreetMap contributors</a>' className="openstreetmap-basemap" />
       <MapFocus focus={focusEvent} />
-      {active.seismic && seismic.slice(0, 350).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.seismic} radius={Math.max(4, Math.min(15, (Number(event.magnitude) || 4) * 1.7))} onSelect={() => {}} />)}
-      {active.natural && natural.slice(0, 220).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.natural} radius={6} />)}
-      {active.conflicts && conflicts.slice(0, 250).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.conflict} radius={Math.max(5, Math.min(12, (Number(event.fatalities) || 0) + 4))} />)}
-      {active.fires && (state.fires?.length ? state.fires : events.filter((event) => event.type === 'fire')).slice(0, 500).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.fire} radius={Math.max(2, Math.min(6, (Number(event.frp) || 20) / 20))} fillOpacity={0.72} />)}
-      {active.infrastructure && contextPoints.map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.infrastructure} radius={7} />)}
+      {active.seismic && seismic.slice(0, 350).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.seismic} radius={Math.max(4, Math.min(15, (Number(event.magnitude) || 4) * 1.7))} onSelect={onSelect} />)}
+      {active.natural && natural.slice(0, 220).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.natural} radius={6} onSelect={onSelect} />)}
+      {active.conflicts && conflicts.slice(0, 250).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.conflict} radius={Math.max(5, Math.min(12, (Number(event.fatalities) || 0) + 4))} onSelect={onSelect} />)}
+      {active.fires && (state.fires?.length ? state.fires : events.filter((event) => event.type === 'fire')).slice(0, 500).map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.fire} radius={Math.max(2, Math.min(6, (Number(event.frp) || 20) / 20))} fillOpacity={0.72} onSelect={onSelect} />)}
+      {active.infrastructure && contextPoints.map((event) => <EventMarker key={event.id || event.external_id} item={event} color={layerColors.infrastructure} radius={7} onSelect={onSelect} />)}
       {active.weather && (state.weather || []).map((city) => validPoint(city) && <Marker key={city.name} position={[Number(city.latitude), Number(city.longitude)]} icon={mapIcon('weather-pin', '◌', '#72c7ee')}>
         <Popup><div className="map-popup"><span className="map-popup-kicker">WEATHER · {city.source || 'WEATHER FEED'}</span><strong>{city.name}, {city.country}</strong><span>{city.description}</span><span>{Math.round(city.temperature)}°C · humidity {city.humidity}% · wind {Math.round((city.windSpeed || 0) * 3.6)} km/h</span></div></Popup>
       </Marker>)}

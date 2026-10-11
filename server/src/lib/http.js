@@ -15,11 +15,33 @@ function combineSignals(requestSignal, timeoutSignal) {
   return controller.signal;
 }
 
-async function readResponseText(response) {
+function abortable(promise, signal) {
+  if (signal.aborted) return Promise.reject(signal.reason);
+  return new Promise((resolve, reject) => {
+    const abort = () => reject(signal.reason);
+    signal.addEventListener('abort', abort, { once: true });
+    Promise.resolve(promise).then(resolve, reject).finally(() => signal.removeEventListener('abort', abort));
+  });
+}
+
+async function readResponseText(response, maxBytes = 8 * 1024 * 1024) {
+  const timeout = responseTimeouts.get(response);
+  const reader = response.body?.getReader();
   try {
-    return await response.text();
+    if (Number(response.headers.get('content-length')) > maxBytes) throw new Error('Upstream response exceeded size limit');
+    if (!reader) return '';
+    const chunks = [];
+    let size = 0;
+    while (true) {
+      const { done, value } = await abortable(reader.read(), timeout.signal);
+      if (done) break;
+      size += value.byteLength;
+      if (size > maxBytes) throw new Error('Upstream response exceeded size limit');
+      chunks.push(Buffer.from(value));
+    }
+    return Buffer.concat(chunks).toString('utf8');
   } catch (error) {
-    const timeout = responseTimeouts.get(response);
+    reader?.cancel().catch(() => {});
     if (timeout?.signal.aborted) throw new Error(`Upstream request timed out after ${timeout.timeoutMs}ms`);
     throw error;
   }
@@ -30,9 +52,9 @@ export async function fetchResponse(url, options = {}, requestedTimeoutMs = DEFA
   const timeoutSignal = AbortSignal.timeout(timeoutMs);
   const signal = combineSignals(options.signal, timeoutSignal);
   try {
-    const response = await fetch(url, { ...options, signal });
+    const response = await abortable(fetch(url, { ...options, signal }), signal);
     if (!response.ok) throw new Error(`Upstream returned HTTP ${response.status}`);
-    responseTimeouts.set(response, { signal: timeoutSignal, timeoutMs });
+    responseTimeouts.set(response, { signal, timeoutMs });
     return response;
   } catch (error) {
     if (timeoutSignal.aborted) throw new Error(`Upstream request timed out after ${timeoutMs}ms`);
@@ -40,9 +62,9 @@ export async function fetchResponse(url, options = {}, requestedTimeoutMs = DEFA
   }
 }
 
-export async function fetchJson(url, options = {}, timeoutMs) {
+export async function fetchJson(url, options = {}, timeoutMs, maxBytes = 8 * 1024 * 1024) {
   const response = await fetchResponse(url, options, timeoutMs);
-  const text = await readResponseText(response);
+  const text = await readResponseText(response, maxBytes);
   try {
     return JSON.parse(text);
   } catch {
@@ -55,6 +77,7 @@ export async function fetchText(url, options = {}, timeoutMs) {
 }
 
 export function safeNumber(value, fallback = null) {
+  if (value === null || value === undefined || (typeof value === 'string' && !value.trim())) return fallback;
   const number = Number(value);
   return Number.isFinite(number) ? number : fallback;
 }

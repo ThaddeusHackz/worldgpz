@@ -81,6 +81,7 @@ export default function OrbitalGlobe({ state }) {
     let dragging = false;
     let lastPointer = { x: 0, y: 0 };
     let autoRotate = 0;
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)');
     const dragRotation = { x: 0, y: 0 };
     try {
       const scene = new THREE.Scene();
@@ -137,6 +138,18 @@ export default function OrbitalGlobe({ state }) {
       };
       const onPointerUp = () => { dragging = false; };
       const onWheel = (event) => { event.preventDefault(); camera.position.z = Math.max(2.1, Math.min(5.2, camera.position.z + event.deltaY * 0.002)); };
+      const onKeyDown = (event) => {
+        if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown', '+', '-', '='].includes(event.key)) event.preventDefault();
+        if (event.key === 'ArrowLeft') dragRotation.y -= 0.12;
+        if (event.key === 'ArrowRight') dragRotation.y += 0.12;
+        if (event.key === 'ArrowUp') dragRotation.x = Math.max(-1.25, dragRotation.x - 0.12);
+        if (event.key === 'ArrowDown') dragRotation.x = Math.min(1.25, dragRotation.x + 0.12);
+        if (['+', '='].includes(event.key)) camera.position.z = Math.max(2.1, camera.position.z - 0.2);
+        if (event.key === '-') camera.position.z = Math.min(5.2, camera.position.z + 0.2);
+      };
+      renderer.domElement.tabIndex = 0;
+      renderer.domElement.setAttribute('aria-label', 'Globe: arrow keys rotate; plus and minus zoom');
+      renderer.domElement.addEventListener('keydown', onKeyDown);
       renderer.domElement.addEventListener('pointerdown', onPointerDown);
       renderer.domElement.addEventListener('pointermove', onPointerMove);
       renderer.domElement.addEventListener('pointerup', onPointerUp);
@@ -144,10 +157,10 @@ export default function OrbitalGlobe({ state }) {
       renderer.domElement.addEventListener('wheel', onWheel, { passive: false });
       const animate = () => {
         animationFrame = requestAnimationFrame(animate);
-        if (!dragging) autoRotate += 0.0007;
+        if (!dragging && !reducedMotion.matches) autoRotate += 0.0007;
         world.rotation.x = dragRotation.x;
         world.rotation.y = dragRotation.y + autoRotate;
-        stars.rotation.y -= 0.00003;
+        if (!reducedMotion.matches) stars.rotation.y -= 0.00003;
         renderer.render(scene, camera);
       };
       animate();
@@ -160,6 +173,7 @@ export default function OrbitalGlobe({ state }) {
         renderer.domElement.removeEventListener('pointerup', onPointerUp);
         renderer.domElement.removeEventListener('pointerleave', onPointerUp);
         renderer.domElement.removeEventListener('wheel', onWheel);
+        renderer.domElement.removeEventListener('keydown', onKeyDown);
         renderer.dispose();
         scene.traverse((object) => {
           object.geometry?.dispose?.();
@@ -189,7 +203,7 @@ export default function OrbitalGlobe({ state }) {
     const all = [
       ...(state.events || []), ...(state.conflicts || []), ...(state.fires || []),
       ...(state.weather || []), ...(state.flights || []).slice(0, 100), ...(state.ships || []).slice(0, 100),
-    ].filter((item) => Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude))).slice(0, 500);
+    ].filter((item) => item.latitude != null && item.longitude != null && item.latitude !== '' && item.longitude !== '' && Number.isFinite(Number(item.latitude)) && Number.isFinite(Number(item.longitude))).slice(0, 500);
     const geometry = new THREE.BufferGeometry();
     const positions = [];
     const colors = [];
@@ -203,19 +217,11 @@ export default function OrbitalGlobe({ state }) {
     geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
     const cloud = new THREE.Points(geometry, new THREE.PointsMaterial({ size: 0.025, vertexColors: true, transparent: true, opacity: 0.95, sizeAttenuation: true }));
     scene.points.add(cloud);
-    for (let index = 0; index < Math.min(all.length - 1, 14); index += 1) {
-      const start = surfacePoint(Number(all[index].latitude), Number(all[index].longitude), 1.018);
-      const end = surfacePoint(Number(all[index + 1].latitude), Number(all[index + 1].longitude), 1.018);
-      const middle = start.clone().add(end).multiplyScalar(0.5).normalize().multiplyScalar(1.12);
-      const curve = new THREE.QuadraticBezierCurve3(start, middle, end);
-      const arcGeometry = new THREE.BufferGeometry().setFromPoints(curve.getPoints(28));
-      scene.arcs.add(new THREE.Line(arcGeometry, new THREE.LineBasicMaterial({ color: 0x3ba984, transparent: true, opacity: 0.36 })));
-    }
   }, [state.events, state.conflicts, state.fires, state.weather, state.flights, state.ships]);
 
   return <div className="orbital-stage">
-    <div className="orbital-overlay"><span><i /> ORBITAL VIEW</span><small>DRAG TO ROTATE · SCROLL TO ZOOM</small></div>
-    <div className="orbital-container" ref={containerRef} role="img" aria-label="Interactive three-dimensional globe showing global signals" />
+    <div className="orbital-overlay"><span><i /> ORBITAL VIEW</span><small>DRAG / ARROW KEYS ROTATE · SCROLL / ± ZOOM</small><small>APPROXIMATE COASTLINES · SOURCE POINTS ONLY</small></div>
+    <div className="orbital-container" ref={containerRef} aria-label="Interactive three-dimensional globe showing global signals" />
     {error && <div className="globe-error"><strong>3D view unavailable</strong><span>{error}</span></div>}
     <div className="orbital-legend"><span><i style={{ background: '#ff7167' }} /> SEISMIC</span><span><i style={{ background: '#f3a352' }} /> CONFLICT</span><span><i style={{ background: '#75d3b4' }} /> NATURAL</span><span>{state.events.length.toLocaleString()} SIGNALS</span></div>
   </div>;

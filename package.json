@@ -14,6 +14,9 @@
     "build": "npm --prefix client run build",
     "test": "node --test server/test/*.test.js client/test/*.test.js",
     "test:providers": "node --test server/test/providers.test.js",
+    "smoke": "node scripts/smoke.mjs",
+    "providers:check": "node scripts/provider-check.mjs",
+    "check": "npm test && npm run build && npm run smoke",
     "seed": "node server/src/data/seed.js",
     "forensic-scan": "node scripts/forensic-scan.mjs"
   },

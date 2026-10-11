@@ -45,7 +45,7 @@ export class EONETProvider extends BaseProvider {
       events.push({
         id: `eonet-${event.id}`, type: 'natural', severity: /volcano|wildfire|storm/i.test(category) ? 'medium' : 'low',
         title, description: category, latitude, longitude, category,
-        time: point?.date ? Date.parse(point.date) : Date.now(), publishedAt: point?.date || null,
+        time: point?.date ? Date.parse(point.date) : null, publishedAt: point?.date || null,
         source: 'NASA EONET', external_id: String(event.id), url: event.sources?.[0]?.url || null,
         metadata: { categories: event.categories || [], closed: event.closed || null },
       });
@@ -72,7 +72,7 @@ export async function fetchGdeltArticles() {
       id: `gdelt-${article.url || index}`, type: 'news', severity, title,
       description: article.domain || 'Global news index', source: `GDELT · ${article.domain || 'publisher'}`,
       domain: article.domain || null, url: article.url || null, publishedAt,
-      time: publishedAt ? Date.parse(publishedAt) : Date.now(), external_id: article.url || `gdelt-${index}`,
+      time: publishedAt ? Date.parse(publishedAt) : null, external_id: article.url || `gdelt-${index}`,
       latitude: safeNumber(article.lat), longitude: safeNumber(article.lon),
     };
   });
@@ -118,7 +118,7 @@ export class ReliefWebProvider extends BaseProvider {
         description: fields.type?.[0]?.name || 'Reported humanitarian disaster', source: 'ReliefWeb',
         external_id: String(item.id), url: fields.url || null, country: country.name || null,
         latitude: safeNumber(coords.lat), longitude: safeNumber(coords.lon), publishedAt: fields.date?.created || null,
-        time: fields.date?.created ? Date.parse(fields.date.created) : Date.now(),
+        time: fields.date?.created ? Date.parse(fields.date.created) : null,
       };
     });
   }

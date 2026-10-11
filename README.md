@@ -8,7 +8,10 @@ WORLDGPZ combines public geospatial feeds, configurable server-side provider ada
 
 ## Features
 
-- Responsive dark dashboard with a Leaflet/CARTO 2D map, optional Three.js orbital globe, searchable locations, selectable signal layers, live event stream, and keyboard shortcuts.
+- Mission Control workspace with category/severity/time filters, evidence dossiers, browser-local watchlists, JSON snapshot exports, and a keyboard command palette.
+- Evidence-linked AI briefings with citations and deterministic fallback, optional device-native read-aloud, and a 30-minute process-local paid-request cooldown.
+- Purposeful motion graphics with reduced-motion support; context watchpoints and stale observations are not presented as current live incidents.
+- Responsive dark dashboard with a Leaflet/OpenStreetMap 2D map, optional Three.js orbital globe, searchable locations, selectable signal layers, live event stream, and keyboard shortcuts.
 - Event, news, weather, aviation, maritime, ISS, satellite-fire, market, energy, macroeconomic, webcam and AI-briefing panels.
 - Server-Sent Events for shared provider snapshots, provider health, and connection status.
 - Provider caching, request timeouts, stale/partial-data handling, and per-source health reporting.
@@ -41,6 +44,8 @@ The application registers 18 server-side sources. Availability depends on provid
 | Where The ISS At | ISS position | Public feed |
 
 The newsroom can use GDELT when NewsAPI is absent or unavailable; weather uses Open-Meteo when OpenWeather is absent or fails; the briefing uses a clearly labelled local headline digest without an AI key. These fallbacks do not imply that data is complete or verified.
+
+Briefings also accept the server-side `OPENAI_API_KEY` and `OPENROUTER_API_KEY` aliases. Leave `AI_BASE_URL` and `AI_MODEL` unset to use defaults for the selected provider. `AI_API_KEY` takes precedence, then OpenAI, then OpenRouter. Device read-aloud uses your browser's speech service, not ElevenLabs; browser/OS support and voice availability vary. There is no payment, Cloudflare administration, or MongoDB integration merely because those keys were supplied in a prompt.
 
 ## Run locally
 
@@ -78,17 +83,21 @@ Open `http://localhost:5173`; Vite forwards `/api` to Express on port 3000. For 
 
 1. Create the Blueprint from the intended repository branch and review the service/database plan.
 2. In the Render dashboard, set the unsynchronized values: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, and `API_KEY_ENCRYPTION_SECRET`. Add optional provider credentials only when available.
+   The updated Blueprint generates independent JWT and key-encryption secrets automatically. For an existing service, verify these are configured and preserve the encryption secret rather than replacing it.
 3. Use a newly generated bcrypt password hash for `ADMIN_PASSWORD_HASH`; do not enter or commit a production plaintext password. Use distinct random values for the JWT and key-encryption secrets.
 4. Confirm `DATABASE_URL` is attached by the blueprint and inspect `/api/health` and `/api/providers/health` after the deploy.
 5. Open `/login`, sign in, and verify the admin console reports PostgreSQL storage before saving provider credentials.
 
-The repository includes the Render blueprint and production build command, but a deployment and live upstream-provider verification have **not** been performed from this workspace. A green application health check only confirms the web process responds; provider availability is shown separately.
+The repository includes the Render blueprint and production build command. Selected public feeds have been checked locally, but a live Render deployment and private credential verification have **not** been performed from this workspace. A green application health check only confirms the web process responds; provider availability is shown separately.
+
+See [the deployment guide](docs/DEPLOYMENT.md) for the release checklist, security notes, troubleshooting, and cost boundaries. Run `npm run check` for tests/build/production smoke verification and `npm run providers:check` for read-only public-source diagnostics. Release checks run on GitHub pull requests and `main`; Render also runs tests before compiling a release. Local public-source verification is not proof of a successful Render deployment or of private credential validity.
 
 ## HTTP endpoints
 
 - `GET /api/health`, `GET /api/providers/health`
 - `GET /api/events` and `/api/events/{seismic,natural,conflicts,fires}`
 - `GET /api/news`, `GET /api/news/headlines`, `GET /api/intel`, `/api/intel/briefing`, `/api/intel/sentiment`, `/api/intel/focal-points`
+- `GET /api/intel/mission?hours=24` — bounded evidence window (1–168 hours), dated observed priorities, source coverage and explicit limitations; not an official risk assessment.
 - `GET /api/weather`, `/api/weather/:city`, `/api/flights`, `/api/flights/military`, `/api/ships`, `/api/iss`
 - `GET /api/markets`, `/api/markets/forex`, `/api/energy`, `/api/economics`, `/api/media/webcams` and `/api/media/webcams/:region`
 - `GET /api/situational`, `/api/situational/countries`, `/api/situational/chokepoints`, `/api/situational/risk`

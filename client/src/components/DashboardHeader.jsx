@@ -15,9 +15,9 @@ export default function DashboardHeader({ state, streamConnected, streamEnabled,
       <Brand />
       <div className="topbar-center">
         <div className="utc-clock"><span className="clock-icon">◷</span><span className="clock-value">{clock}</span><span className="clock-label">UTC</span></div>
-        <div className="header-stat"><span>ACTIVE SIGNALS</span><strong>{activeSignals.toLocaleString()}</strong></div>
+        <div className="header-stat"><span>LOADED RECORDS</span><strong>{activeSignals.toLocaleString()}</strong></div>
         <div className="header-stat"><span>PRIORITY</span><strong className="text-amber">{priority.toLocaleString()}</strong></div>
-        <div className="header-stat"><span>UPLINKS</span><strong>{available}<small>/{state.health.length || 18}</small></strong></div>
+        <div className="header-stat"><span>UPLINKS</span><strong>{available}<small>/{state.health.length || '—'}</small></strong></div>
       </div>
       <div className="topbar-actions">
         <button className={`live-control ${streamConnected ? 'is-live' : ''}`} onClick={onToggleStream} aria-pressed={streamEnabled} title="Toggle live server event stream">

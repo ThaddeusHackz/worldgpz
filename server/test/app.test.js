@@ -82,6 +82,26 @@ test('protected admin routes reject unauthenticated requests', async (t) => {
   assert.equal(logs.status, 401);
 });
 
+test('mission endpoint bounds the window, excludes stale dates, and survives provider failure', async (t) => {
+  const registry = mockRegistry();
+  registry.get('eonet').fetch = async () => { throw new Error('upstream unavailable'); };
+  registry.get('acled').data = [{ id: 'old', title: 'Historical conflict', time: Date.now() - 8 * 86_400_000, severity: 'critical' }];
+  const app = createApp({ registry, store: {}, vault: {}, pulse: { addClient() {} } });
+  const base = await withServer(t, app);
+  const response = await fetch(`${base}/api/intel/mission?hours=999`);
+  const result = await response.json();
+  assert.equal(response.status, 200);
+  assert.equal(result.windowHours, 168);
+  assert.equal(result.summary.total, 2);
+  assert.equal(result.summary.high, 1);
+  assert.ok(result.priorities.every((event) => event.provenance.kind === 'reported'));
+  assert.match(result.limitations.join(' '), /eonet/);
+  const defaults = await (await fetch(`${base}/api/intel/mission?hours=invalid`)).json();
+  assert.equal(defaults.windowHours, 24);
+  const baseline = await (await fetch(`${base}/api/events?type=infrastructure`)).json();
+  assert.ok(baseline.events.every((event) => event.baseline && event.provenance.kind === 'baseline'));
+});
+
 test('malformed session cookies fail closed without crashing the auth status endpoint', async (t) => {
   const registry = mockRegistry();
   const app = createApp({ registry, store: { persistent: false }, vault: {}, pulse: { addClient() {} }, startedAt: Date.now() });

@@ -39,13 +39,18 @@ export class FIRMSProvider extends BaseProvider {
         const latitude = safeNumber(record.latitude);
         const longitude = safeNumber(record.longitude);
         if (!validCoordinate(latitude, longitude)) continue;
+        const acquisitionTime = String(record.acq_time || '').padStart(4, '0');
+        const publishedAt = /^\d{4}-\d{2}-\d{2}$/.test(record.acq_date) && /^\d{4}$/.test(acquisitionTime)
+          ? `${record.acq_date}T${acquisitionTime.slice(0, 2)}:${acquisitionTime.slice(2)}:00Z` : null;
         all.push({
           id: `firms-${source}-${record.latitude}-${record.longitude}-${record.acq_date}-${record.acq_time}`,
           type: 'fire', severity: record.confidence === 'h' || record.confidence === 'high' ? 'high' : 'medium',
           title: 'Satellite thermal anomaly', latitude, longitude,
           brightness: safeNumber(record.bright_ti4 ?? record.brightness), confidence: record.confidence || 'n/a',
           frp: safeNumber(record.frp, 0), satellite: record.satellite || source, daynight: record.daynight,
-          date: record.acq_date, time: record.acq_time, source: 'NASA FIRMS', external_id: `${source}-${record.latitude}-${record.longitude}-${record.acq_date}-${record.acq_time}`,
+          date: record.acq_date, acquisitionTime: record.acq_time, publishedAt,
+          time: publishedAt && Number.isFinite(Date.parse(publishedAt)) ? Date.parse(publishedAt) : null,
+          source: 'NASA FIRMS', url: 'https://firms.modaps.eosdis.nasa.gov/map/', external_id: `${source}-${record.latitude}-${record.longitude}-${record.acq_date}-${record.acq_time}`,
         });
       }
     }

@@ -1,7 +1,5 @@
-import { useCallback, useState } from 'react';
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
 import { AuthProvider, useAuth } from './lib/auth.jsx';
-import BootSequence from './components/BootSequence.jsx';
 import Dashboard from './pages/Dashboard.jsx';
 import Login from './pages/Login.jsx';
 import Admin from './pages/Admin.jsx';
@@ -16,9 +14,6 @@ function ProtectedRoute({ children }) {
 }
 
 function AppRoutes() {
-  const [booted, setBooted] = useState(false);
-  const finishBoot = useCallback(() => setBooted(true), []);
-  if (!booted) return <BootSequence onComplete={finishBoot} />;
   return <AuthProvider><BrowserRouter>
     <Routes>
       <Route path="/" element={<Dashboard />} />
