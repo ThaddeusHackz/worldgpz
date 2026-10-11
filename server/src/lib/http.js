@@ -72,8 +72,8 @@ export async function fetchJson(url, options = {}, timeoutMs, maxBytes = 8 * 102
   }
 }
 
-export async function fetchText(url, options = {}, timeoutMs) {
-  return readResponseText(await fetchResponse(url, options, timeoutMs));
+export async function fetchText(url, options = {}, timeoutMs, maxBytes = 8 * 1024 * 1024) {
+  return readResponseText(await fetchResponse(url, options, timeoutMs), maxBytes);
 }
 
 export function safeNumber(value, fallback = null) {

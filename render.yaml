@@ -60,6 +60,10 @@ services:
         sync: false
       - key: AI_API_KEY
         sync: false
+      - key: OPENROUTER_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
       # The endpoint/model are auto-selected for the provider. Override in Render
       # only when using a compatible API and a model your account can access.
 

@@ -12,3 +12,5 @@ coverage/
 .idea/
 server/data/*.json
 server/data/*.db
+playwright-report/
+test-results/

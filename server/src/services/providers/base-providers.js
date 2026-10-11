@@ -54,10 +54,10 @@ export class EONETProvider extends BaseProvider {
   }
 }
 
-export async function fetchGdeltArticles() {
+export async function fetchGdeltArticles(timeoutMs = 12_000) {
   const query = encodeURIComponent('(conflict OR crisis OR earthquake OR wildfire OR sanctions OR diplomacy)');
   const url = `https://api.gdeltproject.org/api/v2/doc/doc?query=${query}&mode=ArtList&format=json&maxrecords=60&sort=DateDesc&sourcelang=english`;
-  const json = await fetchJson(url);
+  const json = await fetchJson(url, {}, timeoutMs, 1024 * 1024);
   return (json.articles || []).map((article, index) => {
     const title = article.title || 'Untitled report';
     const lowered = title.toLowerCase();

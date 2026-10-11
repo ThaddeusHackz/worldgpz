@@ -13,6 +13,7 @@ export const API_KEY_DEFINITIONS = [
   { provider: 'youtube', keyName: 'YOUTUBE_API_KEY', displayLabel: 'YouTube Data API', category: 'media', description: 'Searches for currently-live public video streams.', isRequired: false, sortOrder: 12, isPassword: true },
   { provider: 'windy', keyName: 'WINDY_API_KEY', displayLabel: 'Windy Webcams', category: 'weather', description: 'Optional webcam metadata from Windy.', isRequired: false, sortOrder: 13, isPassword: true },
   { provider: 'openai', keyName: 'AI_API_KEY', displayLabel: 'OpenAI', category: 'ai', description: 'Optional model-backed global briefing; a clearly labelled local summary is used without a key.', isRequired: false, sortOrder: 14, isPassword: true },
+  { provider: 'tavily', keyName: 'TAVILY_API_KEY', displayLabel: 'Tavily Research', category: 'ai', description: 'Authenticated, on-demand basic web research only; never used by public chat or automatic refresh. Ten-minute global cooldown and thirty-minute cache.', isRequired: false, sortOrder: 15, isPassword: true },
 ];
 
 export const KEY_DEFINITION_BY_NAME = new Map(API_KEY_DEFINITIONS.map((definition) => [definition.keyName, definition]));

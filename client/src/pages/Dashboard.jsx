@@ -14,6 +14,9 @@ import YouTubePlayer from '../components/YouTubePlayer.jsx';
 import { useDashboardData } from '../lib/useDashboardData.js';
 import { MissionOverview, SignalFilters, EventDetail, CommandPalette } from '../components/CommandCenter.jsx';
 import { WATCHLIST_KEY, createSnapshot, filterEvents, hasCoordinates, normalizeEvents } from '../lib/mission.js';
+import Watchroom from '../components/Watchroom.jsx';
+import AnalystWorkspace from '../components/AnalystWorkspace.jsx';
+import '../workspace.css';
 
 const OrbitalGlobe = lazy(() => import('../components/OrbitalGlobe.jsx'));
 const SEARCH_LOCATIONS = [
@@ -24,6 +27,7 @@ const SEARCH_LOCATIONS = [
 const DEFAULT_FILTERS = { search: '', category: 'all', severity: 'all', hours: '', saved: false };
 
 export default function Dashboard() {
+  const [workspace, setWorkspace] = useState('monitor');
   const [streamEnabled, setStreamEnabled] = useState(true);
   const [mapMode, setMapMode] = useState('2d');
   const [focusEvent, setFocusEvent] = useState(null);
@@ -36,7 +40,7 @@ export default function Dashboard() {
     try { const saved = JSON.parse(localStorage.getItem(WATCHLIST_KEY) || '[]'); return Array.isArray(saved) ? normalizeEvents(saved).slice(0, 200) : []; } catch { return []; }
   });
   const { data, refreshing, refreshAll, connected } = useDashboardData(streamEnabled);
-  const events = useMemo(() => normalizeEvents([...(data.mission?.priorities || []), ...data.events, ...data.conflicts, ...data.fires]), [data.mission, data.events, data.conflicts, data.fires]);
+  const events = useMemo(() => normalizeEvents([...(data.mission?.priorities || []), ...(data.watchroom?.threads || []).flatMap((thread) => thread.signals || []), ...data.events, ...data.conflicts, ...data.fires]), [data.mission, data.watchroom, data.events, data.conflicts, data.fires]);
   const savedIds = useMemo(() => watchlist.map((event) => event.id), [watchlist]);
   const availableEvents = useMemo(() => filters.saved ? normalizeEvents([...events.filter((event) => savedIds.includes(event.id)), ...watchlist]) : events, [events, filters.saved, savedIds, watchlist]);
   const filteredEvents = useMemo(() => filterEvents(availableEvents, filters, savedIds).sort((a, b) => (b.observedAt || 0) - (a.observedAt || 0)), [availableEvents, filters, savedIds]);
@@ -60,7 +64,7 @@ export default function Dashboard() {
   const visibleSuggestions = useMemo(() => search.trim() ? SEARCH_LOCATIONS.filter(([name]) => name.toLowerCase().includes(search.trim().toLowerCase())).slice(0, 5) : [], [search]);
 
   const locateEvent = useCallback((event) => {
-    if (hasCoordinates(event)) { setMapMode('2d'); setFocusEvent({ latitude: Number(event.latitude), longitude: Number(event.longitude), nonce: Date.now() }); }
+    if (hasCoordinates(event)) { setWorkspace('monitor'); setMapMode('2d'); setFocusEvent({ latitude: Number(event.latitude), longitude: Number(event.longitude), nonce: Date.now() }); }
   }, []);
   const selectEvent = useCallback((event) => { setSelectedEvent(normalizeEvents([event])[0]); }, []);
 
@@ -90,6 +94,9 @@ export default function Dashboard() {
   }, [refreshAll, paletteOpen, selectedEvent]);
   useEffect(() => { if (!notice) return; const timer = setTimeout(() => setNotice(''), 4500); return () => clearTimeout(timer); }, [notice]);
   const commands = [
+    { id: 'watchroom', label: 'Open Watchroom · monitoring missions and orbital overview', run: () => setWorkspace('watchroom') },
+    { id: 'analyst', label: 'Open Evidence Analyst · ask source-grounded questions', run: () => setWorkspace('analyst') },
+    { id: 'monitor', label: 'Open Monitor · all feeds and telemetry', run: () => setWorkspace('monitor') },
     { id: 'refresh', label: 'Refresh available feeds', hint: 'R', run: refreshAll },
     { id: 'map', label: `Switch to ${mapMode === '2d' ? '3D orbital globe' : '2D signal map'}`, hint: 'G', run: () => setMapMode((mode) => mode === '2d' ? '3d' : '2d') },
     { id: 'saved', label: filters.saved ? 'Show all source records' : 'Open saved watchlist', hint: `${watchlist.length} SAVED`, run: () => setFilters({ ...DEFAULT_FILTERS, saved: !filters.saved }) },
@@ -101,8 +108,12 @@ export default function Dashboard() {
 
   return (
     <div className="dashboard-shell">
-      <a href="#signal-search" className="skip-link">Skip to signal search</a>
+      <a href={workspace === 'monitor' ? '#signal-search' : workspace === 'watchroom' ? '#watchroom-lens' : '#analyst-question'} className="skip-link">Skip to workspace controls</a>
       <DashboardHeader state={data} streamConnected={connected} streamEnabled={streamEnabled} onToggleStream={() => setStreamEnabled((enabled) => !enabled)} onRefresh={refreshAll} refreshing={refreshing} mapMode={mapMode} onMapMode={setMapMode} />
+      <nav className="workspace-navigation" aria-label="Intelligence workspaces"><div className="workspace-nav-tabs">{[{ id: 'monitor', number: '01', title: 'Monitor', note: 'Feeds & telemetry' }, { id: 'watchroom', number: '02', title: 'Watchroom', note: 'Your observation workspace' }, { id: 'analyst', number: '03', title: 'Evidence Analyst', note: 'Questions & citations' }].map((item) => <button key={item.id} data-testid={`workspace-${item.id}`} aria-label={item.id === 'analyst' ? 'Analyst' : item.title} aria-current={workspace === item.id ? 'page' : undefined} onClick={() => setWorkspace(item.id)}><span>{item.number}</span><strong>{item.title}</strong><small>{item.note}</small>{item.id === 'watchroom' && <i />}</button>)}</div><button className="workspace-nav-command" onClick={() => setPaletteOpen(true)} aria-label="Open workspace command palette">⌘ <kbd>Ctrl K</kbd></button></nav>
+      {workspace === 'watchroom' && <Watchroom events={events} data={data} onSelect={selectEvent} onAnalyst={() => setWorkspace('analyst')} onNotice={setNotice} />}
+      {workspace === 'analyst' && <main id="workspace-main"><AnalystWorkspace onSelect={selectEvent} /></main>}
+      {workspace === 'monitor' && <>
       <MissionOverview mission={data.mission} events={events} health={data.health} errors={data.errors} onCommands={() => setPaletteOpen(true)} onExport={exportSnapshot} savedCount={watchlist.length} />
       <SignalFilters filters={filters} onChange={setFilters} categories={categories} total={availableEvents.length} shown={filteredEvents.length} savedCount={watchlist.length} onReset={() => setFilters(DEFAULT_FILTERS)} />
       <LiveWire articles={data.news} onSelect={selectEvent} />
@@ -143,6 +154,7 @@ export default function Dashboard() {
         <WeatherPanel weather={data.weather} provider={providerHealth('weather')} error={data.errors.weather} />
         <YouTubePlayer webcams={data.webcams} status={providerHealth('youtube')?.status} error={data.errors.webcams || providerHealth('youtube')?.lastError} />
       </section>
+      </>}
       <footer className="app-footer"><span>WORLDGPZ <i>GOD’S EYE</i></span><span>POWERED BY THADDEUSTECHZ INTELLIGENCE SYSTEMS</span><a href="/about">ABOUT / DATA NOTES</a><span className="footer-right">© 2026 THADDEUSTECHZ <b>·</b> EVERY SIGNAL. ONE EYE ON THE WORLD.</span></footer>
       {notice && <div className="command-notice" role="status">{notice}</div>}
       {selectedEvent && !paletteOpen && <EventDetail event={selectedEvent} saved={savedIds.includes(selectedEvent.id)} onSave={toggleSaved} onClose={() => setSelectedEvent(null)} onLocate={locateEvent} />}

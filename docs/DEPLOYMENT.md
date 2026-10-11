@@ -27,6 +27,10 @@ Choose a provider/model that actually exists in your provider account. `AI_MODEL
 
 AI is optional. Missing or unavailable AI should leave the public monitoring feeds and explicitly labelled local briefings usable. Provider terms, account eligibility, quotas, and permissions apply independently of WORLDGPZ.
 
+For OpenRouter, set `OPENROUTER_API_KEY`, leave `AI_API_KEY` and `OPENAI_API_KEY` blank, and leave the endpoint/model overrides blank to use `openai/gpt-4o-mini`. Do not put `gpt-6-luna` into a provider model field solely because it is a Tasklet profile name. Check `generativeAvailable` in source health and the briefing's fallback diagnostics after deployment. An accepted metadata request does not establish generation access.
+
+Add `TAVILY_API_KEY` to enable the authenticated administrator research panel. It is deliberately not part of automatic background refresh or public analyst questions. Its credential Test button checks configuration only; a submitted research query performs a bounded paid search.
+
 ## Verification commands
 
 ```sh
@@ -37,6 +41,17 @@ npm run providers:check
 ```
 
 `check` runs the automated tests, the production build, and a real-process production smoke test. The smoke test strips paid-provider credentials and uses a local ephemeral port. `providers:check` performs read-only public USGS, NASA EONET, Open-Meteo, and ISS checks; upstream outages are reported rather than invented away. GitHub release checks also audit production dependencies.
+
+To run the same fixture-based browser workflow tests used on GitHub:
+
+```sh
+npm ci --include=dev
+npx playwright install --with-deps chromium
+npm run build
+npm run test:browser
+```
+
+These tests check UI behavior, not live provider credentials. Production hosting does not need Chromium or the browser-test dependency.
 
 ## Know what is not guaranteed
 

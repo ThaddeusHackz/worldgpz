@@ -169,4 +169,18 @@ test('AI enforces source and paid request deadlines even when mocked upstream ig
   const result = await paid.fetch();
   assert.equal(result.data.fallback, true);
   assert.match(result.data.fallbackReason, /timed out/);
+  assert.equal(result.data.fallbackCode, 'timeout');
+});
+
+test('blocked AI exposes only controlled diagnostics and never claims generative availability', async (t) => {
+  isolate(t); process.env.AI_API_KEY = 'unit-test-secret';
+  globalThis.fetch = async () => new Response('sensitive upstream body unit-test-secret', { status: 429 });
+  const provider = new AIProvider(async () => [headline()]);
+  const { data } = await provider.fetch();
+  assert.equal(data.fallbackCode, 'upstream_http_429');
+  assert.equal(data.upstreamStatus, 429);
+  assert.equal(provider.getHealth().status, 'degraded');
+  assert.equal(provider.getHealth().generativeAvailable, false);
+  assert.equal(provider.getHealth().fallback, true);
+  assert.doesNotMatch(JSON.stringify(data), /sensitive upstream body|unit-test-secret/);
 });

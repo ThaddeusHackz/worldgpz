@@ -6,16 +6,20 @@
   "license": "MIT",
   "private": true,
   "type": "module",
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "scripts": {
     "start": "node server/src/index.js",
     "dev": "node --watch server/src/index.js",
     "dev:client": "npm --prefix client run dev",
     "build": "npm --prefix client run build",
-    "test": "node --test server/test/*.test.js client/test/*.test.js",
+    "test": "node --test --test-concurrency=1 server/test/*.test.js client/test/*.test.js",
     "test:providers": "node --test server/test/providers.test.js",
     "smoke": "node scripts/smoke.mjs",
     "providers:check": "node scripts/provider-check.mjs",
+    "test:browser": "playwright test",
+    "check:full": "npm run check && npm run test:browser",
     "check": "npm test && npm run build && npm run smoke",
     "seed": "node server/src/data/seed.js",
     "forensic-scan": "node scripts/forensic-scan.mjs"
@@ -30,5 +34,8 @@
     "jsonwebtoken": "^9.0.2",
     "pg": "^8.13.1",
     "ws": "^8.18.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.64.0"
   }
 }
