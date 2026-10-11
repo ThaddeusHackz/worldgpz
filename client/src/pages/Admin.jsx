@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { apiRequest } from '../lib/api.js';
 import { useAuth } from '../lib/auth.jsx';
 import Brand from '../components/Brand.jsx';
+import ResearchPanel from '../components/ResearchPanel.jsx';
 
 const STATUS_CLASS = { online: 'online', degraded: 'degraded', offline: 'offline', unconfigured: 'unconfigured', idle: 'idle', loading: 'loading' };
 function duration(seconds = 0) { const hours = Math.floor(seconds / 3600); const minutes = Math.floor(seconds % 3600 / 60); return `${hours}h ${minutes}m`; }
@@ -63,6 +64,7 @@ export default function Admin() {
           </article>)}
         </div>
       </section>
+      <ResearchPanel />
       <section className="admin-provider-section admin-logs-section">
         <div className="admin-section-title"><div><span className="section-kicker">RECENT ACTIVITY</span><h2>Operational log</h2></div><button className="secondary-button" onClick={() => void load()}>↻ REFRESH LOG</button></div>
         <div className="admin-log-list" aria-live="polite">

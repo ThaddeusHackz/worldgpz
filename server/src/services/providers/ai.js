@@ -63,25 +63,27 @@ export class AIProvider extends BaseProvider {
   getHealth() {
     let configured = false;
     try { configured = Boolean(this.configuration().key); } catch { /* Invalid endpoint is not usable configuration. */ }
-    return { ...super.getHealth(), configured, mode: this.data?.method || 'deterministic fallback available' };
+    return { ...super.getHealth(), configured, mode: this.data?.method || 'deterministic fallback available',
+      method: this.data?.method || null, fallback: this.data?.fallback ?? true, fallbackCode: this.data?.fallbackCode || null,
+      upstreamStatus: this.data?.upstreamStatus || null, generativeAvailable: configured && this.status === 'online' && this.data?.fallback === false };
   }
   async _fetchFresh() {
     let input;
     try { input = await withDeadline(() => this.getHeadlines(), this.sourceTimeoutMs); } catch { input = { data: [], error: true }; }
     const stale = Boolean(input?.stale || input?.error);
     const sources = briefingSources(Array.isArray(input) ? input : input?.data);
-    const local = (reason) => ({
+    const local = (reason, code, upstreamStatus = null) => ({
       content: summarizeLocally(sources), citations: sources.slice(0, 5), model: 'local headline digest', source: 'local-fallback',
-      method: 'deterministic headline digest', fallback: true, fallbackReason: reason, stale,
+      method: 'deterministic headline digest', fallback: true, fallbackReason: reason, fallbackCode: code, upstreamStatus, stale,
       generatedAt: new Date().toISOString(), headlineCount: sources.length,
       limitations: ['Reported headlines only; not independently verified. Unknown publication dates are explicitly labelled.', ...(stale ? ['News provider unavailable or serving stale cached data.'] : [])],
     });
     let config;
-    try { config = this.configuration(); } catch { return local('Invalid AI endpoint configuration.'); }
-    if (!config.key) return local('No server AI key configured; no paid model request made.');
-    if (stale || !sources.some((item) => item.publishedAt)) return local('No fresh dated source evidence; no paid model request made.');
+    try { config = this.configuration(); } catch { return local('Invalid AI endpoint configuration.', 'invalid_configuration'); }
+    if (!config.key) return local('No server AI key configured; no paid model request made.', 'no_key');
+    if (stale || !sources.some((item) => item.publishedAt)) return local('No fresh dated source evidence; no paid model request made.', 'no_fresh_evidence');
     // Even authenticated force-refresh/key-test requests cannot multiply paid calls.
-    if (this.lastPaidAttempt !== null && Date.now() - this.lastPaidAttempt < TTL) return this.data || local('Paid request cooldown active.');
+    if (this.lastPaidAttempt !== null && Date.now() - this.lastPaidAttempt < TTL) return this.data || local('Paid request cooldown active.', 'cooldown');
     try {
       const endpoint = new URL(config.baseUrl);
       if (endpoint.protocol !== 'https:' || endpoint.username || endpoint.password || endpoint.search || endpoint.hash) throw new Error('Unsafe AI endpoint');
@@ -105,11 +107,16 @@ export class AIProvider extends BaseProvider {
       const bullets = content.split('\n').filter((line) => /^\s*(?:[-*•]|\d+[.)])\s/.test(line));
       if (!ids.length || ids.some((id) => !validIds.has(id)) || bullets.some((line) => !/\[S\d+\]/.test(line))) throw new Error('Ungrounded briefing citations');
       return { content: content.trim(), citations: dated.filter((item) => ids.includes(item.id)), model: clean(payload.model || config.model, 120), source: config.source,
-        method: 'source-grounded AI headline summary', fallback: false, generatedAt: new Date().toISOString(), headlineCount: dated.length,
+        method: 'source-grounded AI headline summary', fallback: false, fallbackCode: null, upstreamStatus: 200, generatedAt: new Date().toISOString(), headlineCount: dated.length,
         limitations: ['Citations identify supplied reported headlines; model prose and claims are not independently verified.'] };
-    } catch {
+    } catch (error) {
       // Do not expose upstream bodies, credential-bearing errors, or retry a billable POST.
-      return local('AI request failed, timed out, exceeded bounds, or returned ungrounded content; no automatic paid retry.');
+      const message = String(error?.message || '');
+      const status = /^Upstream returned HTTP (\d{3})$/.exec(message)?.[1];
+      const code = status ? `upstream_http_${status}` : /^Upstream request timed out after \d+ms$/.test(message) ? 'timeout'
+        : message === 'Ungrounded briefing citations' ? 'grounding_rejected' : message === 'Invalid briefing content' || message === 'Upstream returned invalid JSON' ? 'invalid_response'
+          : message === 'Upstream response exceeded size limit' ? 'response_too_large' : message === 'Unsafe AI endpoint' ? 'invalid_configuration' : 'upstream_failure';
+      return local('AI request failed, timed out, exceeded bounds, or returned ungrounded content; no automatic paid retry.', code, status ? Number(status) : null);
     }
   }
 }

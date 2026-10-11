@@ -1,0 +1,95 @@
+import { lazy, Suspense, useEffect, useMemo, useState } from 'react';
+import WorldMap from './WorldMap.jsx';
+import { hasCoordinates, relativeTime, safeUrl, timestamp } from '../lib/mission.js';
+import { applyLens, DEFAULT_LENS, geographicClusters, INBOX_KEY, MISSIONS_KEY, observedSignals, readLocalList, REGION_LENSES, SEEN_KEY, sourceTimeline, updateObservedInbox } from '../lib/watchroom.js';
+
+const OrbitalGlobe = lazy(() => import('./OrbitalGlobe.jsx'));
+
+export default function Watchroom({ events, data, onSelect, onAnalyst, onNotice }) {
+  const [lens, setLens] = useState(DEFAULT_LENS);
+  const [view, setView] = useState('orbital');
+  const [immersive, setImmersive] = useState(false);
+  const [clusterId, setClusterId] = useState(null);
+  const [name, setName] = useState('');
+  const [missions, setMissions] = useState(() => readLocalList(MISSIONS_KEY).filter((item) => typeof item.name === 'string' && item.lens && item.id).slice(0, 20));
+  const [inbox, setInbox] = useState(() => readLocalList(INBOX_KEY).filter((item) => item.id && item.event && Array.isArray(item.missionNames)));
+  const [seenIds, setSeenIds] = useState(() => { try { const ids = JSON.parse(localStorage.getItem(SEEN_KEY) || '[]'); return Array.isArray(ids) ? ids.filter((id) => typeof id === 'string').slice(-5000) : []; } catch { return []; } });
+  const [inboxOpen, setInboxOpen] = useState(false);
+  const [now, setNow] = useState(Date.now);
+  useEffect(() => { const timer = setInterval(() => setNow(Date.now()), 60000); return () => clearInterval(timer); }, []);
+  const observed = useMemo(() => observedSignals(events, now), [events, now]);
+  const filtered = useMemo(() => applyLens(observed, lens, now), [observed, lens, now]);
+  const timeline = useMemo(() => sourceTimeline(applyLens(observed, { ...lens, hours: 24 }, now), now), [observed, lens, now]);
+  const categories = useMemo(() => [...new Set(observed.map((event) => event.type))].sort(), [observed]);
+  const clusters = useMemo(() => {
+    const supplied = data.watchroom?.hotspots || [];
+    if (!supplied.length) return geographicClusters(filtered);
+    return supplied.map((cluster) => {
+      const signals = filtered.filter((event) => cluster.eventIds?.includes(event.id));
+      return { ...cluster, signals, count: signals.length, sourceCount: new Set(signals.map((event) => event.source)).size };
+    }).filter((cluster) => cluster.count).sort((a, b) => b.count - a.count).slice(0, 8);
+  }, [data.watchroom, filtered]);
+  const activeCluster = clusters.find((cluster) => cluster.id === clusterId);
+  const threads = useMemo(() => {
+    const supplied = (data.watchroom?.threads || []).map((thread) => ({ ...thread, signals: (thread.signals || []).filter((event) => filtered.some((item) => item.id === event.id)) })).filter((thread) => thread.signals.length);
+    if (supplied.length) return supplied.slice(0, 4);
+    return [...new Set(filtered.map((event) => event.type))].slice(0, 4).map((type) => {
+      const signals = filtered.filter((event) => event.type === type);
+      return { id: type, title: `${type.charAt(0).toUpperCase() + type.slice(1)} observations`, summary: `${signals.length} source records match your current lens. Read individual records before drawing conclusions.`, signals, citations: [], method: 'Grouped by source category, not evidence of related causes.' };
+    });
+  }, [data.watchroom, filtered]);
+  const unread = inbox.filter((item) => !item.read).length;
+  const generated = timestamp(data.watchroom?.generatedAt);
+  const stale = generated != null && now - generated > 30 * 60000;
+  const mapState = useMemo(() => ({ events: activeCluster ? activeCluster.signals : filtered, conflicts: [], fires: [], weather: [], flights: [], ships: [], iss: null, chokepoints: [] }), [filtered, activeCluster]);
+  const focusEvent = activeCluster && hasCoordinates(activeCluster) ? { latitude: activeCluster.latitude, longitude: activeCluster.longitude, nonce: activeCluster.id } : null;
+  const update = (key, value) => { setLens((previous) => ({ ...previous, [key]: value })); setClusterId(null); };
+  const persist = (key, value) => { try { localStorage.setItem(key, JSON.stringify(value)); } catch { onNotice('Browser storage is unavailable. Changes are session-only.'); } };
+  useEffect(() => {
+    const next = updateObservedInbox(inbox, missions, observed, now, seenIds);
+    if (next.length !== inbox.length || next.some((item, index) => item.id !== inbox[index].id)) setInbox(next);
+    const known = new Set(seenIds);
+    const matchedIds = missions.flatMap((mission) => applyLens(observed, mission.lens, now).map((event) => event.id));
+    if (matchedIds.some((id) => !known.has(id))) {
+      const nextSeen = [...new Set([...seenIds, ...matchedIds])].slice(-5000);
+      setSeenIds(nextSeen); persist(SEEN_KEY, nextSeen);
+    }
+  }, [missions, observed, now]);
+  useEffect(() => { persist(INBOX_KEY, inbox); }, [inbox]);
+  const saveMission = (event) => {
+    event.preventDefault(); if (!name.trim()) return;
+    if (missions.length >= 20) { onNotice('This device supports up to 20 saved missions. Remove a mission to add another.'); return; }
+    const mission = { id: globalThis.crypto?.randomUUID?.() || `mission-${Date.now()}`, name: name.trim().slice(0, 60), lens: { ...lens }, createdAt: new Date().toISOString() };
+    const next = [...missions, mission]; setMissions(next); persist(MISSIONS_KEY, next); setName(''); onNotice(`“${mission.name}” saved on this device. Matching loaded observations enter your local inbox.`);
+  };
+  const removeMission = (id) => { const next = missions.filter((mission) => mission.id !== id); setMissions(next); persist(MISSIONS_KEY, next); };
+  const download = () => {
+    const payload = { platform: 'WORLDGPZ', generatedAt: new Date().toISOString(), lens, signals: filtered, hotspots: clusters.map(({ signals, ...cluster }) => cluster), missions, limitations: ['Source-time filtered observations, not a historical replay.', 'Clustering describes reporting density, not risk or related causes.', 'Saved missions and alerts are local to this browser. No background or push monitoring.'], sourceCoverage: data.watchroom?.coverage || [] };
+    const url = URL.createObjectURL(new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })); const link = document.createElement('a'); link.href = url; link.download = `worldgpz-watchroom-${new Date().toISOString().slice(0, 10)}.json`; link.click(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+  };
+  return <main className="watchroom-workspace" id="workspace-main">
+    <section className={`watchroom-hero ${immersive ? 'is-immersive' : ''}`} aria-labelledby="watchroom-title">
+      <div className="watchroom-canvas">{view === 'orbital' ? <Suspense fallback={<div className="watchroom-rendering">Preparing orbital canvas…</div>}><OrbitalGlobe state={mapState} /></Suspense> : <WorldMap state={mapState} focusEvent={focusEvent} onSelect={onSelect} />}</div>
+      <div className="hero-shade" aria-hidden="true" />
+      <div className="watchroom-hero-copy"><span className="workspace-eyebrow"><i /> THE WORLD, IN PERSPECTIVE</span><h1 id="watchroom-title">See the signal.<br /><em>Understand<br />the context.</em></h1><p>Your private observation workspace. Turn scattered source reports into a focused picture of the places and events that matter to you.</p><div className="hero-actions"><button className="workspace-primary" onClick={() => document.getElementById('watchroom-lens')?.focus()}>Build your monitoring lens <span>↓</span></button><button className="workspace-text-button" onClick={onAnalyst}>Ask the evidence analyst ↗</button></div>
+        <div className="hero-source-status"><i className={stale ? 'is-stale' : ''} /><span>{stale ? 'STALE WATCHROOM SNAPSHOT' : data.watchroom ? 'OBSERVATION SNAPSHOT' : 'LOADED FEED VIEW'}<small>{data.watchroom ? relativeTime(data.watchroom.generatedAt, now) : data.errors.watchroom ? 'Watchroom endpoint unavailable · local source grouping' : 'Watchroom loading · available observations shown'}</small></span></div>
+      </div>
+      <div className="orbital-coordinate" aria-hidden="true"><span>EARTH / OBSERVATION LAYER</span><i /><span>NO INFERRED CONNECTIONS</span></div>
+      <div className="watchroom-view-controls" aria-label="Watchroom view"><button aria-pressed={view === 'orbital'} onClick={() => setView('orbital')}>◉ Orbital</button><button aria-pressed={view === 'surface'} onClick={() => setView('surface')}>⌖ Surface</button><button aria-pressed={immersive} onClick={() => setImmersive((previous) => !previous)}>{immersive ? '↙ Compact' : '↗ Expand'}</button></div>
+      <div className="hero-observation-count"><strong>{filtered.length}</strong><span>MATCHING OBSERVATIONS<small>Past {lens.hours}h · excludes baseline / stale records</small></span></div>
+    </section>
+    <div className="watchroom-content">
+      <section className="watchroom-lens" aria-label="Monitoring lens"><div className="workspace-section-heading"><div><span className="workspace-eyebrow">01 / FOCUS YOUR ATTENTION</span><h2>One lens. Less noise.</h2></div><button className="workspace-text-button" onClick={() => { setLens(DEFAULT_LENS); setClusterId(null); }}>Reset lens ↺</button></div>
+        <div className="lens-controls"><label className="lens-query"><span>Search source records</span><input id="watchroom-lens" placeholder="A place, topic or source…" value={lens.query} onChange={(event) => update('query', event.target.value)} /></label><label><span>Category</span><select aria-label="Watchroom category" value={lens.category} onChange={(event) => update('category', event.target.value)}><option value="all">All observations</option>{categories.map((category) => <option key={category}>{category}</option>)}</select></label><label><span>Minimum severity</span><select aria-label="Watchroom minimum severity" value={lens.minSeverity} onChange={(event) => update('minSeverity', event.target.value)}>{['unknown', 'low', 'medium', 'high', 'critical'].map((severity) => <option key={severity} value={severity}>{severity === 'unknown' ? 'Any / unknown included' : `${severity} and above`}</option>)}</select></label><label><span>Geographic lens</span><select aria-label="Watchroom region" value={lens.region} onChange={(event) => update('region', event.target.value)}>{REGION_LENSES.map((region) => <option key={region.id} value={region.id}>{region.label}</option>)}</select></label></div>
+        <div className="source-time-scrubber"><div className="scrubber-heading"><span>SOURCE-TIME WINDOW <b>Past {lens.hours} hours</b></span><small>{filtered.length} observations · not a historical replay</small></div><div className="timeline-bars" aria-label="Hourly source observation counts">{timeline.map((bucket, index) => <button key={bucket.time} className={index >= 24 - lens.hours ? 'is-in-window' : ''} style={{ '--bar-height': `${Math.max(3, bucket.count / Math.max(1, ...timeline.map((item) => item.count)) * 100)}%` }} onClick={() => update('hours', 24 - index)} aria-label={`${new Date(bucket.time).toISOString().slice(11, 16)} UTC: ${bucket.count} observations; filter past ${24 - index} hours`} title={`${bucket.count} observations / ${bucket.highCount} high or critical`}><i /><span className="sr-only">{bucket.count}</span></button>)}</div><input type="range" min="1" max="24" value={lens.hours} onChange={(event) => update('hours', Number(event.target.value))} aria-label="Source-time lookback hours" /><div className="timeline-labels"><span>1 HOUR</span><span>6 HOURS</span><span>12 HOURS</span><span>24 HOURS</span></div></div>
+        <p className="workspace-note">Source timestamps only. Undated, future, stale and baseline records are excluded. Regions use approximate coordinate bounds, not country borders; missing coordinates are excluded from regional views.</p>
+      </section>
+      <div className="watchroom-insight-grid"><section className="geographic-section" aria-labelledby="hotspot-title"><div className="workspace-section-heading"><div><span className="workspace-eyebrow">02 / GEOGRAPHIC CONCENTRATION</span><h2 id="hotspot-title">Where reports converge.</h2></div><span className="workspace-count">{filtered.filter(hasCoordinates).length} LOCATED</span></div><p className="workspace-note">Descriptive source density. Not a risk score, incident boundary or proof of related events.</p><div className="hotspot-list">{clusters.map((cluster, index) => <button key={cluster.id} className={activeCluster?.id === cluster.id ? 'is-selected' : ''} aria-pressed={activeCluster?.id === cluster.id} onClick={() => { setClusterId((previous) => previous === cluster.id ? null : cluster.id); setView('surface'); }}><span className="hotspot-index">{String(index + 1).padStart(2, '0')}</span><span className="hotspot-info"><strong>{cluster.label}</strong><small>{cluster.sourceCount} represented sources · {cluster.count} observations</small></span><span className="hotspot-density" style={{ '--density': `${cluster.count / Math.max(1, ...clusters.map((item) => item.count)) * 100}%` }}><i /></span><span>↗</span></button>)}{!clusters.length && <div className="workspace-empty"><span>⌖</span><h3>No located observations in this lens.</h3><p>Try a broader source-time window or region. No concentration has been inferred.</p></div>}</div>{activeCluster && <div className="cluster-evidence"><div className="cluster-evidence-head"><span>CLUSTER SOURCE RECORDS</span><button onClick={() => setClusterId(null)} aria-label="Clear selected cluster">×</button></div>{activeCluster.signals.slice(0, 5).map((event) => <button key={event.id} onClick={() => onSelect(event)}>{event.title}<span>↗</span></button>)}</div>}</section>
+        <section className="threads-section" aria-labelledby="threads-title"><div className="workspace-section-heading"><div><span className="workspace-eyebrow">03 / THE SOURCE PICTURE</span><h2 id="threads-title">Threads worth reading.</h2></div></div><div className="intelligence-threads">{threads.map((thread, index) => <article key={thread.id} className="intelligence-thread"><div className="thread-number">0{index + 1}<span>{thread.signals.length} RECORDS</span></div><div><h3>{thread.title}</h3><p>{thread.summary}</p><div className="thread-evidence-links">{thread.signals.slice(0, 2).map((event) => <button key={event.id} onClick={() => onSelect(event)}>{event.title}<span>↗</span></button>)}</div><details><summary>Evidence & grouping method</summary><p>{thread.method || 'Source observations grouped for reading, not independently verified.'}</p>{(thread.citations || []).slice(0, 4).map((citation, citationIndex) => { const url = safeUrl(citation.url); return url ? <a key={`${citation.id}-${citationIndex}`} href={url} target="_blank" rel="noopener noreferrer">{citation.title} ↗<small>{citation.source}</small></a> : <span key={`${citation.id}-${citationIndex}`}>{citation.title} · source link unavailable</span>; })}</details></div></article>)}{!threads.length && <div className="workspace-empty"><span>≋</span><h3>No observations match this lens.</h3><p>Coverage gaps are visible here, not filled with generated stories.</p></div>}</div></section></div>
+      <section className="monitoring-missions" aria-labelledby="missions-title"><div className="workspace-section-heading"><div><span className="workspace-eyebrow">04 / YOUR MONITORING WORKSPACE</span><h2 id="missions-title">Make attention intentional.</h2></div><button className="workspace-secondary" onClick={() => setInboxOpen((previous) => !previous)} aria-expanded={inboxOpen}>◇ Local inbox <b>{unread}</b></button></div><div className="mission-save-layout"><div><p>Save this lens as a named mission. New-to-this-device matching observations appear in your local inbox while the Watchroom is open.</p><form onSubmit={saveMission}><label className="sr-only" htmlFor="mission-name">Monitoring mission name</label><input id="mission-name" value={name} maxLength={60} onChange={(event) => setName(event.target.value)} placeholder="Name your mission — e.g. Pacific seismic" /><button className="workspace-primary" disabled={!name.trim()}>Save current lens +</button></form><small>Browser-only storage. No push notifications, continuous background monitoring or cross-device sync. First matching loaded records are captured as initial observations.</small></div><div className="saved-mission-list">{missions.map((mission) => <div className="saved-mission" key={mission.id}><button onClick={() => { setLens({ ...DEFAULT_LENS, ...mission.lens }); setClusterId(null); onNotice(`Applied mission “${mission.name}”.`); }}><strong>{mission.name}</strong><small>{mission.lens.category} · {mission.lens.minSeverity}+ · {mission.lens.hours}h · {REGION_LENSES.find((region) => region.id === mission.lens.region)?.label || 'Global'}</small><span>{applyLens(observed, mission.lens, now).length} MATCHES ↗</span></button><button className="mission-remove" onClick={() => removeMission(mission.id)} aria-label={`Remove mission ${mission.name}`}>×</button></div>)}{!missions.length && <div className="mission-first"><span>+</span><strong>Your first monitoring mission starts here.</strong><p>Save the current query, category, severity, region and source-time window.</p></div>}</div></div>
+        {inboxOpen && <div className="local-inbox"><header><span className="workspace-eyebrow">FIRST OBSERVED ON THIS DEVICE / {inbox.length} RECORDS</span><button className="workspace-text-button" onClick={() => setInbox((previous) => previous.map((item) => ({ ...item, read: true })))}>Mark all read ✓</button></header>{inbox.slice(0, 30).map((item) => <button className={item.read ? 'is-read' : ''} key={item.id} onClick={() => { onSelect(item.event); setInbox((previous) => previous.map((record) => record.id === item.id ? { ...record, read: true } : record)); }}><i /><div><strong>{item.event.title}</strong><small>{item.missionNames.join(' · ')} / first seen {relativeTime(item.firstSeenAt, now)}</small></div><span>↗</span></button>)}{!inbox.length && <p className="workspace-note">No captured observations yet. Save a mission with matching loaded records to start your local inbox.</p>}{inbox.length > 30 && <p className="workspace-note">Showing latest 30 of {inbox.length} locally retained records.</p>}</div>}
+      </section>
+      <section className="watchroom-coverage"><div><span className="workspace-eyebrow">OBSERVABILITY, NOT OMNISCIENCE</span><h2>The gaps are part of the picture.</h2><p>{data.watchroom?.limitations?.join(' ') || 'This view is limited to source records currently loaded in your browser. Source latency and uneven geographic reporting affect what appears. An empty area is not evidence of no activity.'}</p></div><div className="watchroom-coverage-sources">{(data.watchroom?.coverage || data.mission?.coverage || []).slice(0, 8).map((source) => <span key={source.source}>{source.source}<b>{source.count}</b></span>)}<button className="workspace-secondary" onClick={download}>↓ Export this workspace <small>JSON + limitations</small></button></div></section>
+    </div>
+  </main>;
+}

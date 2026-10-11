@@ -26,5 +26,15 @@ jobs:
       - run: npm test
       - run: npm run build
       - run: npm run smoke
+      - run: npx playwright install --with-deps chromium
+      - run: npm run test:browser
       - run: npm audit --omit=dev --audit-level=high
       - run: npm --prefix client audit --omit=dev --audit-level=high
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: browser-test-results
+          path: |
+            playwright-report/
+            test-results/
+          retention-days: 7

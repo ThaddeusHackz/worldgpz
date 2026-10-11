@@ -8,6 +8,11 @@ WORLDGPZ combines public geospatial feeds, configurable server-side provider ada
 
 ## Features
 
+- Three purpose-built workspaces: **Monitor**, cinematic **Watchroom**, and the interactive **Evidence Analyst**.
+- Expansive orbital/surface views, geographic observation concentrations, evidence threads, regional lenses and a source-time scrubber.
+- Named browser-local monitoring missions and a deduplicated local observation inbox while the Watchroom is open; no implied background/push monitoring.
+- Public deterministic evidence questions with citations, plus authenticated, cost-bounded Tavily research for administrators.
+- Public BBC World and Al Jazeera RSS newsroom fallbacks alongside NewsAPI/GDELT, retaining publisher names and original dates.
 - Mission Control workspace with category/severity/time filters, evidence dossiers, browser-local watchlists, JSON snapshot exports, and a keyboard command palette.
 - Evidence-linked AI briefings with citations and deterministic fallback, optional device-native read-aloud, and a 30-minute process-local paid-request cooldown.
 - Purposeful motion graphics with reduced-motion support; context watchpoints and stale observations are not presented as current live incidents.
@@ -46,6 +51,8 @@ The application registers 18 server-side sources. Availability depends on provid
 The newsroom can use GDELT when NewsAPI is absent or unavailable; weather uses Open-Meteo when OpenWeather is absent or fails; the briefing uses a clearly labelled local headline digest without an AI key. These fallbacks do not imply that data is complete or verified.
 
 Briefings also accept the server-side `OPENAI_API_KEY` and `OPENROUTER_API_KEY` aliases. Leave `AI_BASE_URL` and `AI_MODEL` unset to use defaults for the selected provider. `AI_API_KEY` takes precedence, then OpenAI, then OpenRouter. Device read-aloud uses your browser's speech service, not ElevenLabs; browser/OS support and voice availability vary. There is no payment, Cloudflare administration, or MongoDB integration merely because those keys were supplied in a prompt.
+
+To select OpenRouter, set `OPENROUTER_API_KEY` and leave `AI_API_KEY`/`OPENAI_API_KEY` blank; its default model is `openai/gpt-4o-mini`. A key that works for metadata may still be blocked for generation. Provider health exposes `generativeAvailable` and safe fallback diagnostics rather than claiming a local digest is successful AI generation. `TAVILY_API_KEY` enables the authenticated research panel, not public unlimited search.
 
 ## Run locally
 
@@ -92,12 +99,17 @@ The repository includes the Render blueprint and production build command. Selec
 
 See [the deployment guide](docs/DEPLOYMENT.md) for the release checklist, security notes, troubleshooting, and cost boundaries. Run `npm run check` for tests/build/production smoke verification and `npm run providers:check` for read-only public-source diagnostics. Release checks run on GitHub pull requests and `main`; Render also runs tests before compiling a release. Local public-source verification is not proof of a successful Render deployment or of private credential validity.
 
+See [the intelligence guide](docs/INTELLIGENCE.md) for workflow methods, geography/time boundaries, local alert storage and AI/research cost gates. For reproducible browser checks, install the development dependencies and Chromium (`npx playwright install --with-deps chromium`), then run `npm run test:browser` or `npm run check:full`. Browser fixtures are explicitly labelled; live-provider checks are separate.
+
 ## HTTP endpoints
 
 - `GET /api/health`, `GET /api/providers/health`
 - `GET /api/events` and `/api/events/{seismic,natural,conflicts,fires}`
 - `GET /api/news`, `GET /api/news/headlines`, `GET /api/intel`, `/api/intel/briefing`, `/api/intel/sentiment`, `/api/intel/focal-points`
 - `GET /api/intel/mission?hours=24` — bounded evidence window (1–168 hours), dated observed priorities, source coverage and explicit limitations; not an official risk assessment.
+- `GET /api/intel/watchroom?hours=24` — geographic clusters, hourly source-time buckets and descriptive source threads.
+- `POST /api/intel/ask` — public deterministic evidence retrieval; JSON `{ "question": "What earthquake observations are available?" }`.
+- `POST /api/admin/research` — authenticated Tavily search; JSON `{ "query": "USGS official earthquakes" }`, cached and quota-gated.
 - `GET /api/weather`, `/api/weather/:city`, `/api/flights`, `/api/flights/military`, `/api/ships`, `/api/iss`
 - `GET /api/markets`, `/api/markets/forex`, `/api/energy`, `/api/economics`, `/api/media/webcams` and `/api/media/webcams/:region`
 - `GET /api/situational`, `/api/situational/countries`, `/api/situational/chokepoints`, `/api/situational/risk`

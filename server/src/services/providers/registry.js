@@ -11,6 +11,8 @@ import { MacroProvider } from './macro.js';
 import { YouTubeProvider, WindyProvider } from './media.js';
 import { AIProvider } from './ai.js';
 import { ISSProvider } from './iss.js';
+import { collectObservations } from '../watchroom.js';
+import { eventTime } from '../mission.js';
 
 const DEFAULT_REFRESH_MS = {
   usgs: 5 * 60_000, eonet: 10 * 60_000, gdelt: 10 * 60_000, swpc: 5 * 60_000,
@@ -45,9 +47,13 @@ export class ProviderRegistry {
       registry.register(provider);
     }
     const ai = new AIProvider(async () => {
-      const news = registry.get('news');
-      const result = await news.fetch();
-      return result;
+      const { events } = await collectObservations(registry, { timeoutMs: 10_000 });
+      const fresh = events.filter((event) => !event.provenance?.stale);
+      const available = (fresh.length ? fresh : events).sort((a, b) => (eventTime(b) || 0) - (eventTime(a) || 0));
+      // Ensure both publisher reports and observed incidents can appear in the bounded briefing input.
+      const news = available.filter((event) => event.type === 'news');
+      const observations = available.filter((event) => event.type !== 'news');
+      return { data: [...news.slice(0, 20), ...observations.slice(0, 15)], stale: !fresh.length && events.length > 0 };
     });
     ai.setSecretResolver(secretResolver);
     registry.register(ai);

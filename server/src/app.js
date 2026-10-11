@@ -14,6 +14,8 @@ import { BASELINE_WATCHPOINTS } from './data/baseline.js';
 import { WEATHER_CITIES } from './services/providers/weather.js';
 import { buildChokepoints, buildCountries, buildStrategicRisk } from './services/situational.js';
 import { analyzeMission, isBaseline } from './services/mission.js';
+import { collectObservations, buildWatchroom, answerQuestion } from './services/watchroom.js';
+import { ResearchService } from './services/research.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(__dirname, '../../client/dist');
@@ -82,6 +84,7 @@ function sendCollection(res, provider, data, key = 'data') {
 
 export function createApp({ registry, store, vault, pulse, startedAt = Date.now() }) {
   const app = express();
+  const research = new ResearchService(() => vault?.get?.('TAVILY_API_KEY') || process.env.TAVILY_API_KEY);
   if (process.env.TRUST_PROXY === '1') app.set('trust proxy', 1);
   app.disable('x-powered-by');
   app.use(helmet({
@@ -191,6 +194,20 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
         } catch { unavailableSources.push(name); return []; }
       }));
       res.json(analyzeMission(results.flat(), { hours: req.query.hours, unavailableSources }));
+    } catch (error) { next(error); }
+  });
+  app.get('/api/intel/watchroom', async (req, res, next) => {
+    try {
+      const { events, unavailableSources } = await collectObservations(registry);
+      res.json(buildWatchroom(events, { hours: req.query.hours, unavailableSources }));
+    } catch (error) { next(error); }
+  });
+  app.post('/api/intel/ask', async (req, res, next) => {
+    const question = req.body?.question;
+    if (typeof question !== 'string' || !question.trim() || question.length > 500) return res.status(400).json({ error: 'Question must be a nonblank string of at most 500 characters.' });
+    try {
+      const { events, unavailableSources } = await collectObservations(registry);
+      res.json(answerQuestion(question.trim(), events, { hours: 24, unavailableSources }));
     } catch (error) { next(error); }
   });
   app.get('/api/intel/sentiment', async (_req, res, next) => {
@@ -346,6 +363,13 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
     res.json({ status: 'ok', uptime: Math.floor((Date.now() - startedAt) / 1000), memory: process.memoryUsage(), providers, database: store?.persistent ? 'postgresql' : 'memory-only' });
   });
   app.get('/api/admin/providers', authMiddleware, (_req, res) => res.json({ providers: registry.getHealthReport() }));
+  app.post('/api/admin/research', authMiddleware, async (req, res) => {
+    try { res.json(await research.search(req.body?.query)); }
+    catch (error) {
+      if (error.retryAfterSeconds) res.setHeader('Retry-After', String(error.retryAfterSeconds));
+      res.status(error.status || 502).json({ error: error.message, retryAfterSeconds: error.retryAfterSeconds || null });
+    }
+  });
   app.post('/api/admin/providers/:name/refresh', authMiddleware, async (req, res) => {
     const provider = registry.get(String(req.params.name));
     if (!provider) return res.status(404).json({ error: 'Provider not found.' });
@@ -412,6 +436,12 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
   });
   app.post('/api/admin/keys/test/:provider', authMiddleware, async (req, res) => {
     const providerName = String(req.params.provider);
+    if (providerName === 'tavily') {
+      const outcome = { status: research.configured ? 'pending' : 'unconfigured', configured: research.configured, latencyMs: 0, dataPoints: 0,
+        error: research.configured ? null : 'TAVILY_API_KEY is missing.', testedAt: new Date().toISOString(), note: 'Configuration check only; no paid API request. Use authenticated research for a bounded live search.' };
+      await vault.setTestResult(KEY_DEFINITION_BY_NAME.get('TAVILY_API_KEY'), outcome);
+      return res.json({ provider: 'tavily', ...outcome });
+    }
     const provider = registry.get(providerName);
     if (!provider) return res.status(404).json({ error: `Provider '${providerName}' not found.` });
     provider.invalidate();
