@@ -1,3 +1,5 @@
+import { isBaseline } from './mission.js';
+
 const COUNTRY_BASELINES = [
   ['Ukraine', 85, 'Europe'], ['Russia', 77, 'Europe'], ['Syria', 72, 'Asia'], ['Israel', 70, 'Asia'],
   ['Yemen', 70, 'Asia'], ['Pakistan', 70, 'Asia'], ['Iran', 69, 'Asia'], ['Myanmar', 66, 'Asia'],
@@ -31,7 +33,7 @@ const clamp = (value, min = 0, max = 100) => Math.max(min, Math.min(max, value))
 export function buildCountries({ conflicts = [], events = [], news = [] } = {}) {
   return COUNTRY_BASELINES.map(([name, baseline, continent]) => {
     const conflictEvents = conflicts.filter((event) => String(event.country || '').toLowerCase() === name.toLowerCase());
-    const disasterEvents = events.filter((event) => String(event.title || '').toLowerCase().includes(name.toLowerCase()));
+    const disasterEvents = events.filter((event) => !isBaseline(event) && String(event.title || '').toLowerCase().includes(name.toLowerCase()));
     const newsHits = news.filter((article) => String(article.title || '').toLowerCase().includes(name.toLowerCase())).length;
     const conflict = Math.min(15, conflictEvents.length * 3 + conflictEvents.reduce((sum, event) => sum + Math.min(4, Number(event.fatalities) || 0), 0));
     const disaster = Math.min(8, disasterEvents.length * 2);
@@ -46,7 +48,7 @@ export function buildCountries({ conflicts = [], events = [], news = [] } = {}) 
 }
 
 export function buildChokepoints({ events = [], news = [], ships = [] } = {}) {
-  const corpus = [...events, ...news].map((item) => `${item.title || ''} ${item.description || ''}`.toLowerCase()).join(' ');
+  const corpus = [...events, ...news].filter((item) => !isBaseline(item)).map((item) => `${item.title || ''} ${item.description || ''}`.toLowerCase()).join(' ');
   return CHOKEPOINTS.map((point) => {
     const signalCount = point.keywords.reduce((count, keyword) => count + (corpus.includes(keyword) ? 1 : 0), 0);
     const shipsNearby = ships.filter((ship) => Math.abs(ship.latitude - point.lat) < 2.5 && Math.abs(ship.longitude - point.lon) < 3.5).length;
@@ -62,7 +64,7 @@ export function buildStrategicRisk(countries, chokepoints, events) {
   const topFive = countries.slice(0, 5);
   const countryComponent = topFive.length ? topFive.reduce((sum, country) => sum + country.score, 0) / topFive.length : 0;
   const convergence = clamp(chokepoints.reduce((sum, point) => sum + (point.status === 'disrupted' ? 18 : point.status === 'strained' ? 8 : 2), 0) / Math.max(1, chokepoints.length));
-  const incidentComponent = clamp(events.filter((event) => ['critical', 'high'].includes(event.severity)).length * 2);
+  const incidentComponent = clamp(events.filter((event) => !isBaseline(event) && ['critical', 'high'].includes(event.severity)).length * 2);
   const score = Math.round(countryComponent * 0.5 + convergence * 0.3 + incidentComponent * 0.2);
   return {
     score, level: score >= 76 ? 'critical' : score >= 51 ? 'high' : score >= 26 ? 'medium' : 'low',

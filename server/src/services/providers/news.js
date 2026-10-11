@@ -36,7 +36,7 @@ export class NewsProvider extends BaseProvider {
         title: article.title, description: article.description || '',
         source: article.source?.name || 'NewsAPI', author: article.author || null,
         url: article.url, image: article.urlToImage || null,
-        publishedAt: article.publishedAt || null, time: article.publishedAt ? Date.parse(article.publishedAt) : Date.now(),
+        publishedAt: article.publishedAt || null, time: article.publishedAt ? Date.parse(article.publishedAt) : null,
         region: inferRegion(article.title), external_id: article.url || `newsapi-${index}`,
       }));
     } catch (error) {

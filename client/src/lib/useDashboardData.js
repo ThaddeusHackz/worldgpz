@@ -4,6 +4,7 @@ import { useDirectUplink } from './useDirectUplink.js';
 
 const FIVE_MINUTES = 5 * 60_000;
 const DATA_SOURCES = [
+  { key: 'mission', url: '/api/intel/mission', interval: FIVE_MINUTES, transform: (data) => data },
   { key: 'events', url: '/api/events', interval: FIVE_MINUTES, transform: (data) => listFrom(data, 'events') },
   { key: 'weather', url: '/api/weather', interval: 10 * 60_000, transform: (data) => listFrom(data) },
   { key: 'flights', url: '/api/flights', interval: 30_000, transform: (data) => listFrom(data) },
@@ -24,7 +25,7 @@ const DATA_SOURCES = [
 
 const INITIAL_STATE = {
   events: [], weather: [], flights: [], ships: [], news: [], markets: [], conflicts: [], fires: [], iss: null,
-  briefing: null, health: [], energy: [], economics: [], webcams: [], countries: [], chokepoints: [], errors: {}, lastSync: null,
+  briefing: null, mission: null, health: [], energy: [], economics: [], webcams: [], countries: [], chokepoints: [], errors: {}, lastSync: null,
 };
 
 export function useDashboardData(streamEnabled = true) {

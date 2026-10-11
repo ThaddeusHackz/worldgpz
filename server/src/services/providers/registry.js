@@ -47,7 +47,7 @@ export class ProviderRegistry {
     const ai = new AIProvider(async () => {
       const news = registry.get('news');
       const result = await news.fetch();
-      return result.data || [];
+      return result;
     });
     ai.setSecretResolver(secretResolver);
     registry.register(ai);

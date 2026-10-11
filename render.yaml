@@ -4,7 +4,7 @@ services:
     runtime: node
     plan: 0.5c-512mb
     region: oregon
-    buildCommand: npm ci && npm --prefix client ci && npm run build
+    buildCommand: npm ci --no-audit --no-fund && npm --prefix client ci --no-audit --no-fund && npm test && npm run build
     startCommand: npm start
     healthCheckPath: /api/health
     envVars:
@@ -27,9 +27,9 @@ services:
       - key: ADMIN_NAME
         value: WORLDGPZ Administrator
       - key: JWT_SECRET
-        sync: false
+        generateValue: true
       - key: API_KEY_ENCRYPTION_SECRET
-        sync: false
+        generateValue: true
       - key: NEWS_API_KEY
         sync: false
       - key: OPENWEATHER_API_KEY
@@ -60,10 +60,8 @@ services:
         sync: false
       - key: AI_API_KEY
         sync: false
-      - key: AI_BASE_URL
-        value: https://api.openai.com/v1
-      - key: AI_MODEL
-        value: gpt-4o-mini
+      # The endpoint/model are auto-selected for the provider. Override in Render
+      # only when using a compatible API and a model your account can access.
 
 databases:
   - name: worldgpz-db

@@ -13,6 +13,7 @@ import { API_KEY_DEFINITIONS, KEY_DEFINITION_BY_NAME } from './services/keyRegis
 import { BASELINE_WATCHPOINTS } from './data/baseline.js';
 import { WEATHER_CITIES } from './services/providers/weather.js';
 import { buildChokepoints, buildCountries, buildStrategicRisk } from './services/situational.js';
+import { analyzeMission, isBaseline } from './services/mission.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const CLIENT_DIST = path.resolve(__dirname, '../../client/dist');
@@ -46,9 +47,14 @@ async function readProvider(registry, name, force = false) {
 
 async function aggregateEvents(registry) {
   const names = ['usgs', 'eonet', 'acled', 'firms', 'reliefweb'];
-  const settled = await Promise.allSettled(names.map((name) => readProvider(registry, name)));
+  const settled = await Promise.allSettled(names.map(async (name) => {
+    const provider = registry.get(name);
+    if (!provider) return [];
+    const result = await provider.fetch();
+    return arrayValue(result.data).map((event) => ({ ...event, provenance: { ...event.provenance, kind: 'reported', provider: name, stale: Boolean(result.stale), verified: false } }));
+  }));
   const live = settled.flatMap((result) => result.status === 'fulfilled' ? arrayValue(result.value) : []);
-  return uniqueEvents([...live, ...BASELINE_WATCHPOINTS]);
+  return uniqueEvents([...live, ...BASELINE_WATCHPOINTS.map((event) => ({ ...event, baseline: true, provenance: { kind: 'baseline', verified: false } }))]);
 }
 
 function sentimentScore(title = '') {
@@ -171,6 +177,22 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
       res.json(result.data || { content: 'Briefing not available.', model: 'none', generatedAt: new Date().toISOString(), headlineCount: 0 });
     } catch (error) { next(error); }
   });
+  app.get('/api/intel/mission', async (req, res, next) => {
+    try {
+      const names = ['usgs', 'eonet', 'acled', 'firms', 'reliefweb', 'news', 'gdelt'];
+      const unavailableSources = [];
+      const results = await Promise.all(names.map(async (name) => {
+        const provider = registry.get(name);
+        if (!provider) { unavailableSources.push(name); return []; }
+        try {
+          const result = await provider.fetch();
+          if (result.error || result.stale || result.configured === false || ['offline', 'degraded', 'unconfigured'].includes(provider.status)) unavailableSources.push(name);
+          return arrayValue(result.data).map((event) => ({ ...event, provenance: { ...event.provenance, provider: name, stale: Boolean(result.stale) } }));
+        } catch { unavailableSources.push(name); return []; }
+      }));
+      res.json(analyzeMission(results.flat(), { hours: req.query.hours, unavailableSources }));
+    } catch (error) { next(error); }
+  });
   app.get('/api/intel/sentiment', async (_req, res, next) => {
     try {
       const articles = arrayValue(await readProvider(registry, 'news')).slice(0, 100);
@@ -184,6 +206,7 @@ export function createApp({ registry, store, vault, pulse, startedAt = Date.now(
       const [news, events] = await Promise.all([readProvider(registry, 'news'), aggregateEvents(registry)]);
       const groups = new Map();
       for (const item of [...arrayValue(news), ...events]) {
+        if (isBaseline(item)) continue;
         const region = item.region || item.metadata?.region || 'GLOBAL';
         const current = groups.get(region) || { region, signalCount: 0, maxSeverity: 'low' };
         current.signalCount += 1;
