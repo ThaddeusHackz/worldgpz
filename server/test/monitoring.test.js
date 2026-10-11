@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import http from 'node:http';
 import { parseNewsFeed, fetchPublicNews } from '../src/services/providers/rss.js';
 import { NewsProvider } from '../src/services/providers/news.js';
-import { buildWatchroom, answerQuestion, collectObservations } from '../src/services/watchroom.js';
+import { buildWatchroom, answerQuestion, collectObservations, termMatches } from '../src/services/watchroom.js';
 import { ResearchService } from '../src/services/research.js';
 import { API_KEY_DEFINITIONS } from '../src/services/keyRegistry.js';
 import { createApp } from '../src/app.js';
@@ -133,6 +133,27 @@ test('analyst category synonyms retrieve observations whose titles omit category
     }
   }
   assert.equal(answerQuestion('earthquakes', [], { now }).citations.length, 0);
+});
+
+test('analyst matches whole words, not substrings, and discloses unmatched question terms', () => {
+  const events = [event('usgs-quake', { title: 'M5.1 - 40 km S of Hokkaido', source: 'USGS' }),
+    event('warning', { title: 'Flood warning issued for river basin', type: 'flood', source: 'ReliefWeb' }),
+    event('focus', { title: 'Markets focus on central bank', type: 'news', source: 'BBC World', severity: 'low' }),
+    event('us-news', { title: 'US storm damage reported', type: 'news', source: 'Al Jazeera', severity: 'low' })];
+  assert.deepEqual(answerQuestion('Any US reports?', events, { now }).citations.map((cite) => cite.id), ['us-news']);
+  assert.equal(answerQuestion('war', events, { now }).citations.length, 0);
+  assert.deepEqual(answerQuestion('flooding', events, { now }).citations.map((cite) => cite.id), ['warning']);
+  assert.deepEqual(answerQuestion('flood', events, { now }).citations.map((cite) => cite.id), ['warning']);
+  assert.deepEqual(answerQuestion('warnings', events, { now }).citations.map((cite) => cite.id), ['warning']);
+  const partial = answerQuestion('earthquakes in Atlantis', events, { now });
+  assert.deepEqual(partial.citations.map((cite) => cite.id), ['usgs-quake']);
+  assert.deepEqual(partial.unmatchedTerms, ['atlantis']);
+  assert.deepEqual(partial.matchedTerms, ['earthquakes']);
+  assert.match(partial.answer, /No loaded report in this window mentions: atlantis/);
+  const full = answerQuestion('Hokkaido earthquake', events, { now });
+  assert.deepEqual(full.unmatchedTerms, []);
+  assert.doesNotMatch(full.answer, /No loaded report/);
+  assert.ok(termMatches('iran', new Set(['iranian'])) && !termMatches('us', new Set(['usgs'])) && !termMatches('war', new Set(['warning'])));
 });
 
 test('generic analyst priority questions rank actual fresh observations without broadening specific queries', () => {
