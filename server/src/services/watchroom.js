@@ -78,29 +78,48 @@ export function buildWatchroom(events, options = {}) {
   };
 }
 
-const STOPWORDS = new Set('a an and are as at be by can do for from has have how i in is it me of on or please reports show the there this to today what whats when where which with you latest current happening tell about world summarize summary'.split(' '));
+const STOPWORDS = new Set('a an and are as at be by can do for from has have how i in is it me of on or please reports show the there this to today what whats when where which with you latest current happening tell about world summarize summary any anything happened happen going recent recently now some were was did does been new update updates near around'.split(' '));
 const CATEGORY_SYNONYMS = new Map([
   ...['earthquake', 'earthquakes', 'quake', 'quakes', 'seismic'].map((word) => [word, 'seismic']),
   ...['wildfire', 'wildfires', 'fire', 'fires', 'thermal'].map((word) => [word, 'fire']),
   ...['conflict', 'conflicts', 'violence'].map((word) => [word, 'conflict']),
 ]);
 const GENERIC_PRIORITY_WORDS = new Set('needs need attention highest high severity priorities priority urgent critical important most top observations observation available events event risks risk'.split(' '));
+const wordsOf = (text) => new Set(String(text || '').toLowerCase().match(/[\p{L}\p{N}]+/gu) || []);
+// Whole-word matching with simple plural/-ing/-ed handling; prefixes only for terms of 4+ letters ("flood" <-> "flooding").
+// Raw substrings are deliberately avoided: "us" must not match "USGS" or "focus", and "war" must not match "warning".
+export function termMatches(term, words) {
+  const singular = term.length > 3 && term.endsWith('s') ? term.slice(0, -1) : null;
+  const stem = term.length >= 7 && term.endsWith('ing') ? term.slice(0, -3) : term.length >= 6 && term.endsWith('ed') ? term.slice(0, -2) : null;
+  for (const word of words) {
+    if (word === term || word === `${term}s` || word === `${term}es` || (singular && word === singular) || (term.length >= 4 && word.startsWith(term)) || (stem && word.startsWith(stem))) return true;
+  }
+  return false;
+}
 export function answerQuestion(question, events, options = {}) {
   const mission = analyzeMission(events, options);
   const tokens = [...new Set(question.toLowerCase().match(/[\p{L}\p{N}]{2,}/gu) || [])].filter((word) => !STOPWORDS.has(word)).slice(0, 30);
   const categories = new Set(tokens.map((token) => CATEGORY_SYNONYMS.get(token)).filter(Boolean));
   const priorityQuery = tokens.every((token) => GENERIC_PRIORITY_WORDS.has(token));
+  const specificTerms = priorityQuery ? [] : tokens.filter((token) => !GENERIC_PRIORITY_WORDS.has(token));
+  const matchedTerms = new Set();
   const matches = mission.priorities.map((event) => {
-    const text = `${event.title} ${event.type} ${event.source}`.toLowerCase();
-    const categoryMatch = categories.has(event.type.toLowerCase());
-    const score = priorityQuery ? 0 : Number(categoryMatch) + tokens.reduce((sum, token) => sum + (!GENERIC_PRIORITY_WORDS.has(token) && text.includes(token) ? 1 : 0), 0);
+    const words = wordsOf(`${event.title} ${event.type} ${event.source}`);
+    const type = String(event.type || '').toLowerCase();
+    const categoryMatch = categories.has(type);
+    let score = priorityQuery ? 0 : Number(categoryMatch);
+    for (const token of specificTerms) {
+      if (termMatches(token, words) || CATEGORY_SYNONYMS.get(token) === type) { score += 1; matchedTerms.add(token); }
+    }
     return { event, score };
   }).filter((item) => priorityQuery || item.score > 0).sort((a, b) => b.score - a.score || rank[b.event.severity] - rank[a.event.severity] || b.event.time - a.event.time || a.event.id.localeCompare(b.event.id));
   const signals = matches.slice(0, 8).map((item) => item.event);
   const citations = signals.map(citation);
+  const unmatchedTerms = specificTerms.filter((token) => !matchedTerms.has(token));
+  const coverageNote = signals.length && unmatchedTerms.length ? ` No loaded report in this window mentions: ${unmatchedTerms.join(', ')}. Results below match other question terms only.` : '';
   const answer = signals.length
-    ? `Found ${matches.length} matching report(s) in the last ${mission.windowHours} hours. ${priorityQuery ? 'General priority query; showing observed reports ranked by reported severity, then time.' : `Ranked by explicit event-category synonyms${categories.size ? ` (${[...categories].join(', ')})` : ''} and question-word overlap, then reported severity and time.`}\n\n${signals.map((event, index) => `${index + 1}. ${event.title} — ${event.source}, ${new Date(event.time).toISOString()} [${event.id}]`).join('\n')}\n\nThese are reported observations, not independently verified findings. I cannot establish causes, forecast outcomes, or infer events absent from the feeds.`
+    ? `Found ${matches.length} matching report(s) in the last ${mission.windowHours} hours.${coverageNote} ${priorityQuery ? 'General priority query; showing observed reports ranked by reported severity, then time.' : `Ranked by explicit event-category synonyms${categories.size ? ` (${[...categories].join(', ')})` : ''} and question-word overlap, then reported severity and time.`}\n\n${signals.map((event, index) => `${index + 1}. ${event.title} — ${event.source}, ${new Date(event.time).toISOString()} [${event.id}]`).join('\n')}\n\nThese are reported observations, not independently verified findings. I cannot establish causes, forecast outcomes, or infer events absent from the feeds.`
     : `No matching dated reports were found in the last ${mission.windowHours} hours for this question. Try a place, event type, or keyword shown in the watchroom. Absence of coverage does not establish safety or disprove an event.`;
-  return { generatedAt: mission.generatedAt, question, answer, method: 'deterministic source retrieval; explicit category synonyms + keyword overlap; general priority queries use reported severity and observation time; no model or paid request',
-    windowHours: mission.windowHours, matchedCount: matches.length, citations, signals, limitations: mission.limitations };
+  return { generatedAt: mission.generatedAt, question, answer, method: 'deterministic source retrieval; explicit category synonyms + whole-word keyword overlap (simple plural/-ing/-ed forms, 4+ letter prefixes); general priority queries use reported severity and observation time; no model or paid request',
+    windowHours: mission.windowHours, matchedCount: matches.length, matchedTerms: specificTerms.filter((token) => matchedTerms.has(token)), unmatchedTerms, citations, signals, limitations: mission.limitations };
 }

@@ -8,7 +8,7 @@ WORLDGPZ is an observation and analysis workspace, not an omniscient sensor netw
 
 **Watchroom** provides a larger orbital/surface canvas, geographic concentrations, readable source threads and a source-time lens. A timeline controls which currently loaded observations are shown. It does not reconstruct a historical world state, and there is no undisclosed historical warehouse behind it.
 
-**Evidence Analyst** retrieves observations and publisher reports relevant to your question and returns source cards. Public answers are deterministic retrieval, not generative AI. The separate automated briefing can use a configured model, with citations and a local fallback. These modes are deliberately distinguished.
+**Evidence Analyst** retrieves observations and publisher reports relevant to your question and returns source cards. Public answers are deterministic retrieval, not generative AI. Question words match whole words (with simple plural, -ing/-ed and four-letter-prefix forms), not raw substrings, and the answer names any question term that no loaded report mentions. The separate automated briefing can use a configured model, with citations and a local fallback. These modes are deliberately distinguished.
 
 ## Monitoring missions and alerts
 
