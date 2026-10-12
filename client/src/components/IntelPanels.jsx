@@ -1,20 +1,29 @@
+import { useMemo, useState } from 'react';
+
 const riskColor = (score) => score >= 71 ? '#fa615d' : score >= 51 ? '#f3a553' : score >= 31 ? '#e8c45d' : score >= 16 ? '#57c99a' : '#a2b4b9';
 
-export function CountryRisk({ countries = [] }) {
-  const shown = countries.slice(0, 8);
+export function CountryRisk({ countries = [], onBrief, briefEnabled = false }) {
+  const [countryQuery, setCountryQuery] = useState('');
+  const matchingCountries = useMemo(() => {
+    const needle = countryQuery.trim().toLocaleLowerCase();
+    return needle ? countries.filter((country) => country.name.toLocaleLowerCase().includes(needle)) : countries;
+  }, [countries, countryQuery]);
+  const shown = matchingCountries.slice(0, 8);
   return (
     <section className="panel compact-panel">
       <div className="section-heading"><div><span className="section-kicker">COUNTRY SIGNALS</span><h2>Risk index <sup>EST.</sup></h2></div><span className="counter-badge">{countries.length || '—'}<small> MONITORED</small></span></div>
+      <label className="country-search-control"><span>⌕</span><input value={countryQuery} onChange={(event) => setCountryQuery(event.target.value)} placeholder="Search all monitored countries…" aria-label="Search country index" /></label>
       <div className="country-list">
         {shown.map((country) => <div className="country-risk-row" key={country.name} title={country.basis}>
           <span className="country-risk-name">{country.name}</span>
           <span className="country-meter"><i style={{ width: `${country.score}%`, background: riskColor(country.score) }} /></span>
           <strong style={{ color: riskColor(country.score) }}>{country.score}</strong>
           <span className="country-level">{country.level}</span>
+          {onBrief && <button className="country-brief-action" onClick={() => onBrief(country)} disabled={!briefEnabled} aria-label={`Open OpenAI country brief for ${country.name}`} title={briefEnabled ? `Open OpenAI country brief for ${country.name}` : 'Set OPENAI_API_KEY on the server to enable country briefs'}>BRIEF</button>}
         </div>)}
-        {!shown.length && <div className="mini-empty">Scoring available when signal data loads.</div>}
+        {!shown.length && <div className="mini-empty">{countryQuery ? 'No supported country matches this search.' : 'Scoring available when signal data loads.'}</div>}
       </div>
-      <div className="panel-note">Heuristic baseline + live feed counts · not an official risk rating</div>
+      <div className="panel-note">Heuristic baseline + live feed counts · not official{onBrief && !briefEnabled ? ' · server OPENAI_API_KEY required' : ''}</div>
     </section>
   );
 }
