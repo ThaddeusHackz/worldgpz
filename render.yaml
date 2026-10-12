@@ -58,14 +58,15 @@ services:
         sync: false
       - key: WINDY_API_KEY
         sync: false
-      - key: AI_API_KEY
+      - key: OPENAI_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
       - key: TAVILY_API_KEY
         sync: false
-      # The endpoint/model are auto-selected for the provider. Override in Render
-      # only when using a compatible API and a model your account can access.
+      # The endpoint/model are auto-selected for the provider (AI_MODEL, or the
+      # OPENAI_MODEL alias). Override in Render only when using a compatible API
+      # and a model your account can access.
 
 databases:
   - name: worldgpz-db

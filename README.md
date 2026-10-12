@@ -16,16 +16,21 @@ WORLDGPZ combines public geospatial feeds, configurable server-side provider ada
 - Mission Control workspace with category/severity/time filters, evidence dossiers, browser-local watchlists, JSON snapshot exports, and a keyboard command palette.
 - Evidence-linked AI briefings with citations and deterministic fallback, optional device-native read-aloud, and a 30-minute process-local paid-request cooldown.
 - Purposeful motion graphics with reduced-motion support; context watchpoints and stale observations are not presented as current live incidents.
-- Responsive dark dashboard with a Leaflet/OpenStreetMap 2D map, optional Three.js orbital globe, searchable locations, selectable signal layers, live event stream, and keyboard shortcuts.
-- Event, news, weather, aviation, maritime, ISS, satellite-fire, market, energy, macroeconomic, webcam and AI-briefing panels.
-- Server-Sent Events for shared provider snapshots, provider health, and connection status.
+- Responsive dark dashboard with MAP / WIRE / GLOBE views, a Leaflet/OpenStreetMap 2D map, optional Three.js orbital globe, region and severity filters, keyword filtering, shareable map URLs, selectable signal layers, time windows, adaptive marker clustering, searchable locations, live event stream, and keyboard shortcuts.
+- Browser-local dashboard workspaces with World, Finance, Crisis, Infrastructure, and Space & Environment presets, per-panel visibility, drag/arrow reordering, and resizable side-rail panels.
+- Compact 15-minute dashboard snapshots with a 7-day local history browser for captured events, headlines, market counts and source status.
+- Local stock/crypto ticker watchlists (up to 50 symbols) with same-origin quote lookup, source-filtered headlines, and browser-local place/keyword alerts.
+- Event, news, weather, aviation, maritime, ISS/launch, satellite-fire, prediction-market, outbreak-monitoring, market, energy, macroeconomic, webcam and AI-briefing panels, plus server-side analyst Q&A and source-linked country briefs.
+- Server-Sent Events for shared provider snapshots, provider health, and connection status, plus a stateless read-only MCP HTTP endpoint with seven bounded data tools.
 - Provider caching, request timeouts, stale/partial-data handling, and per-source health reporting.
-- Admin sign-in with HTTP-only session cookies, provider refresh/test tools, an in-memory operational log, and API-key management. Admin-managed keys are encrypted with AES-256-GCM before storage; PostgreSQL-backed storage is enabled by the Render blueprint.
+- Admin sign-in with HTTP-only session cookies, provider refresh/test tools, an in-memory operational log, encrypted API-key management, and a browser-local keyword/place watchlist with opt-in desktop alerts. Admin-managed keys are encrypted with AES-256-GCM before storage; PostgreSQL-backed storage is enabled by the Render blueprint.
 - Express serves the built Vite application in production; no cross-origin client API calls are required.
+
+A capability-by-capability status and known gaps are tracked in [`docs/FEATURE_COVERAGE.md`](docs/FEATURE_COVERAGE.md). Coverage is intentionally described as partial where upstream access, geography or analytical validation is incomplete; no one-to-one feature parity is claimed.
 
 ## Provider coverage
 
-The application registers 18 server-side sources. Availability depends on provider access, credentials, terms, quotas, and upstream status.
+The application registers 21 server-side sources. Availability depends on provider access, credentials, terms, quotas, and upstream status.
 
 | Source | Dashboard role | Configuration |
 |---|---|---|
@@ -45,10 +50,13 @@ The application registers 18 server-side sources. Availability depends on provid
 | FRED | Economic series | `FRED_API_KEY` |
 | Windy | Webcam metadata | `WINDY_API_KEY` |
 | YouTube Data API | Search for public live streams | `YOUTUBE_API_KEY` |
-| OpenAI-compatible API | Optional news briefing | `AI_API_KEY`; configurable base URL and model |
+| OpenAI Responses API | News briefing, source-grounded analyst Q&A, and supported-country briefs | `OPENAI_API_KEY` (server-side only); optional `OPENAI_MODEL` |
 | Where The ISS At | ISS position | Public feed |
+| WHO Disease Outbreak News | Recent official outbreak notices | Public OData feed; sorted by publication time |
+| Polymarket Gamma / Manifold Markets fallback | Active probabilities ranked by 24-hour volume; Manifold is explicitly labelled as a community play-money fallback | Public feeds; no key; upstream reachability is not guaranteed |
+| The Space Devs Launch Library 2 | Upcoming mission, vehicle, provider and launch-window schedule | Public feed; no key; rate limits apply |
 
-The newsroom can use GDELT when NewsAPI is absent or unavailable; weather uses Open-Meteo when OpenWeather is absent or fails; the briefing uses a clearly labelled local headline digest without an AI key. These fallbacks do not imply that data is complete or verified.
+The newsroom can use GDELT when NewsAPI is absent or unavailable; weather uses Open-Meteo when OpenWeather is absent or fails; the briefing uses a clearly labelled local headline digest without `OPENAI_API_KEY`. OpenAI powers model-backed briefings, analyst answers, and supported-country briefs when configured; every model-backed feature uses the server-side `OPENAI_API_KEY`. The WHO, Polymarket and Manifold integrations are cached server-side and report upstream failures as unavailable/stale data. A Polymarket outage falls back to Manifold, whose play-money probabilities and volume units are labelled separately. These fallbacks do not imply that data is complete or verified.
 
 Briefings also accept the server-side `OPENAI_API_KEY` and `OPENROUTER_API_KEY` aliases. Leave `AI_BASE_URL` and `AI_MODEL` unset to use defaults for the selected provider. `AI_API_KEY` takes precedence, then OpenAI, then OpenRouter. Device read-aloud uses your browser's speech service, not ElevenLabs; browser/OS support and voice availability vary. There is no payment, Cloudflare administration, or MongoDB integration merely because those keys were supplied in a prompt.
 
@@ -89,7 +97,7 @@ Open `http://localhost:5173`; Vite forwards `/api` to Express on port 3000. For 
 `render.yaml` defines the Node web service and a PostgreSQL database. It uses Render's current `0.5c-512mb` web-service and `0.1c-256mb` Postgres plan IDs; review the selected plans, region, and billing before creating the blueprint because these plans may incur charges ([Render compute-plan reference](https://render.com/docs/compute-plans)).
 
 1. Create the Blueprint from the intended repository branch and review the service/database plan.
-2. In the Render dashboard, set the unsynchronized values: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, and `API_KEY_ENCRYPTION_SECRET`. Add optional provider credentials only when available.
+2. In the Render dashboard, set the unsynchronized values: `ADMIN_EMAIL`, `ADMIN_PASSWORD_HASH`, `JWT_SECRET`, and `API_KEY_ENCRYPTION_SECRET`. Set `AI_API_KEY` (or the `OPENAI_API_KEY` alias) to enable model-backed briefings, analyst chat, and country briefs; add other provider credentials only when available.
    The updated Blueprint generates independent JWT and key-encryption secrets automatically. For an existing service, verify these are configured and preserve the encryption secret rather than replacing it.
 3. Use a newly generated bcrypt password hash for `ADMIN_PASSWORD_HASH`; do not enter or commit a production plaintext password. Use distinct random values for the JWT and key-encryption secrets.
 4. Confirm `DATABASE_URL` is attached by the blueprint and inspect `/api/health` and `/api/providers/health` after the deploy.
@@ -106,14 +114,15 @@ See [the intelligence guide](docs/INTELLIGENCE.md) for workflow methods, geograp
 - `GET /api/health`, `GET /api/providers/health`
 - `GET /api/events` and `/api/events/{seismic,natural,conflicts,fires}`
 - `GET /api/news`, `GET /api/news/headlines`, `GET /api/intel`, `/api/intel/briefing`, `/api/intel/sentiment`, `/api/intel/focal-points`
+- `POST /api/intel/chat` and `POST /api/intel/country-brief` — server-side analyst answers and source-linked country briefs (AI key required; rate-limited).
 - `GET /api/intel/mission?hours=24` — bounded evidence window (1–168 hours), dated observed priorities, source coverage and explicit limitations; not an official risk assessment.
 - `GET /api/intel/watchroom?hours=24` — geographic clusters, hourly source-time buckets and descriptive source threads.
 - `POST /api/intel/ask` — public deterministic evidence retrieval; JSON `{ "question": "What earthquake observations are available?" }`.
 - `POST /api/admin/research` — authenticated Tavily search; JSON `{ "query": "USGS official earthquakes" }`, cached and quota-gated.
-- `GET /api/weather`, `/api/weather/:city`, `/api/flights`, `/api/flights/military`, `/api/ships`, `/api/iss`
-- `GET /api/markets`, `/api/markets/forex`, `/api/energy`, `/api/economics`, `/api/media/webcams` and `/api/media/webcams/:region`
+- `GET /api/weather`, `/api/weather/:city`, `/api/flights`, `/api/flights/military`, `/api/ships`, `/api/iss`, `/api/launches`
+- `GET /api/markets`, `/api/markets/forex`, `/api/markets/watchlist?symbols=AAPL,MSFT`, `/api/predictions`, `/api/outbreaks`, `/api/energy`, `/api/economics`, `/api/media/webcams` and `/api/media/webcams/:region`
 - `GET /api/situational`, `/api/situational/countries`, `/api/situational/chokepoints`, `/api/situational/risk`
-- `GET /api/stream` (Server-Sent Events)
+- `GET /api/stream` (Server-Sent Events); `POST /api/mcp` (read-only MCP JSON-RPC tools; no OAuth or account-scoped access)
 - `/api/admin/*` and `/api/auth/*` are protected by server-side authentication where applicable.
 
 ## Data notes

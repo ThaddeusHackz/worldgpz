@@ -5,7 +5,8 @@ const endpoints = [
   ['/api/events/seismic', 'Seismic feed'], ['/api/events/natural', 'Natural events'], ['/api/events/conflicts', 'Conflict feed'],
   ['/api/events/fires', 'Fire detections'], ['/api/weather', 'Global weather'], ['/api/news', 'News wire'],
   ['/api/news/headlines', 'News headline alias'], ['/api/situational', 'Situational snapshot'],
-  ['/api/markets', 'Market quotes'], ['/api/energy', 'Energy indicators'], ['/api/economics', 'Economic series'],
+  ['/api/markets', 'Market quotes'], ['/api/predictions', 'Prediction markets'], ['/api/outbreaks', 'WHO outbreak notices'],
+  ['/api/launches', 'Upcoming launches'], ['/api/energy', 'Energy indicators'], ['/api/economics', 'Economic series'],
   ['/api/flights', 'Aircraft positions'], ['/api/ships', 'Vessel positions'], ['/api/iss', 'ISS position'],
   ['/api/media/webcams', 'Live webcams'], ['/api/intel/briefing', 'AI briefing'],
   ['/api/situational/countries', 'Country risk estimates'], ['/api/situational/chokepoints', 'Trade routes'],
@@ -16,7 +17,7 @@ async function scan([path, name]) {
   try {
     const response = await fetch(`${baseUrl}${path}`, { signal: AbortSignal.timeout(25_000) });
     const body = await response.json().catch(() => ({}));
-    const data = Array.isArray(body) ? body : body.events || body.articles || body.providers || body.webcams || body.data || body;
+    const data = Array.isArray(body) ? body : body.events || body.articles || body.providers || body.webcams || body.markets || body.outbreaks || body.launches || body.data || body;
     const count = Array.isArray(data) ? data.length : data && typeof data === 'object' ? 1 : 0;
     return { name, status: response.ok ? 'OK' : `HTTP ${response.status}`, latency: Date.now() - start, count };
   } catch (error) { return { name, status: 'ERROR', latency: Date.now() - start, count: 0, error: error.message }; }
